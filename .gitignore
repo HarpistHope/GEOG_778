@@ -1,0 +1,14 @@
+# Ignore local environment secrets
+.env
+.env.local
+.env.*
+
+# Ignore local config file containing key
+config.js
+
+pugetmain.js
+pugetmap.js
+pugetlocation.js
+pugetstyle.css
+cutcode.js
+thoughts.txt

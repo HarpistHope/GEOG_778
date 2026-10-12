@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=yes" />
+    <title>ForeignHokkaido</title>
+
+    <!-- Attribution for Hokkaido Favicon: Hokkaido by Snow from Noun Project (CC BY 3.0)  -->
+    <link rel="icon" type="image/png" href="images/noun_Hokkaido_2676113_@700.jpg">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.26/esri/themes/light/main.css" />
+    <link rel="stylesheet" href="css/style.css" />
+
+    <script src="https://js.arcgis.com/4.26/"></script>
+</head>
+<body>
+
+    <!-- Header Overlay -->
+    <header class="app-header" id="appHeader">
+        <div>
+            <div id="lbl-title" class="header-title">ForeignHokkaido</div>
+            <div id="lbl-subtitle" class="header-subtitle">Oshima & Hiyama Network Map for ALTs</div>
+        </div>
+        <div class="header-controls">
+            <button id="btn-lang-toggle" class="header-btn primary">🇯🇵 日本語</button>
+            <button id="btn-season-toggle" class="header-btn">❄️ Winter Mode</button>
+            <button id="btn-reset-view" class="header-btn">🎯 Reset Extent</button>
+        </div>
+    </header>
+
+    <div id="viewDiv"></div>
+
+    <script type="module" src="js/main.js"></script>
+    
+</body>
+</html>

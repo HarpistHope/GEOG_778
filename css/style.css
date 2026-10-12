@@ -1,0 +1,274 @@
+/* ForeignHokkaido style.css -- Google Gemini helped target specific elements for initial project mockup styling  */
+
+:root {
+    --primary-blue: #1b365d;
+    --accent-teal: #007ac2;
+    --dark-text: #151515;
+    --light-bg: #f8f9fa;
+    --border-color: #e2e8f0;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Global Box-Sizing Fix for Everything */
+*, *:before, *:after {
+    box-sizing: border-box;
+}
+
+html, body {
+    padding: 0;
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--dark-text);
+    background-color: var(--light-bg);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.esri-widget, 
+.esri-popup__content,
+.esri-popup__header-title {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    color: var(--dark-text) !important;
+}
+
+#viewDiv {
+    padding: 0;
+    margin: 0;
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+/* Floating Top Header Overlay Ribbon (Desktop Default) */
+.app-header {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    height: 60px;
+    transform: translateX(-50%);
+    z-index: 99;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 16px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    min-width: 320px;
+    border: 1px solid var(--border-color);
+}
+
+.header-title {
+    font-weight: bold;
+    font-size: 14px;
+    color: var(--primary-blue);
+}
+
+.header-subtitle {
+    font-size: 10px;
+    color: #666;
+}
+
+.header-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.header-btn {
+    background: #eef2f5;
+    height: 40px;
+    border: 1px solid #ccc;
+    padding: 5px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.header-btn:hover {
+    background: #e2e8f0;
+}
+
+.header-btn.primary {
+    background: var(--primary-blue);
+    color: white;
+    border: none;
+}
+
+.header-btn.primary:hover {
+    background: var(--accent-teal);
+}
+
+/* Core Esri Widgets Interfacing */
+.esri-widget--button, 
+.esri-widget {
+    background-color: #ffffff !important;
+    color: var(--primary-blue) !important;
+    border-radius: 6px !important;
+    box-shadow: var(--shadow-sm) !important;
+    border: 1px solid var(--border-color) !important; 
+}
+
+
+/* Standalone Custom Map Controls Button */
+#controlPanelCustomBtn {
+    width: auto !important;
+    min-width: 120px !important;
+    height: 32px !important;
+    padding: 0 14px !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+}
+
+/* Desktop Widget Offsets
+.esri-ui-top-left, .esri-ui-top-right {
+    top: 5px !important;
+} */
+
+/* .esri-attribution {
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    padding: 3px 8px !important;
+    font-size: 10px !important;
+    border-top-left-radius: 4px;
+    z-index: 10 !important;
+} */
+
+
+/* ==========================================================================
+   MOBILE SCREEN CONFIGURATIONS (< 768px)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    
+    /* 1. Move Header Ribbon to the Bottom */
+    .app-header {
+        top: auto !important;
+        bottom: 22px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        height: 75px !important;
+        width: 98% !important;
+        min-width: unset !important;
+        padding: 8px 12px !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        background: rgba(255, 255, 255, 0.96) !important;
+        backdrop-filter: blur(8px);
+        z-index: 999 !important;
+    }
+
+    .header-text, .header-subtitle {
+        display: none; 
+    }
+
+    .header-controls {
+        width: 100% !important;
+        justify-content: space-around !important;
+        gap: 6px !important;
+    }
+
+    .header-btn {
+        flex: 1 !important;
+        padding: 6px 4px !important;
+        font-size: 10px !important;
+        min-height: 36px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+    }
+
+    /* 2. Pin Esri Attribution cleanly to the bottom edge
+    .esri-attribution {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 4px !important;
+        right: 0 !important;
+        width: 98% !important;
+        padding: 2px 4px !important;
+        z-index: 999 !important;
+    } */
+
+    /* 3. Reset top-left widgets */
+    .esri-ui-top-left, .esri-ui-top-right {
+        top: 5px !important;
+    }
+
+    /* 4. Strictly Constrain Expanded Drawers on Mobile */
+    .esri-expand__content--expanded {
+        position: fixed !important;
+        top: 15px !important;
+        left: 55px !important; 
+        width: 250px !important;
+        max-width: calc(90vw - 60px) !important; 
+        max-height: 60vh !important;
+        overflow-y: auto !important; 
+        box-shadow: var(--shadow-md) !important;
+        border-radius: 8px !important;
+        z-index: 9999 !important;
+        background: #ffffff !important;
+    }
+
+    .esri-expand__content--expanded > div,
+    .esri-expand__content--expanded .esri-widget {
+        width: 100% !important;
+        max-width: 100% !important;
+        background: #ffffff !important;
+    }
+
+    /* 5. Fix overflowing elements strictly inside mobile expanded panels */
+    .esri-expand__content--expanded select {
+        width: 100% !important;
+        max-width: 100% !important;
+        text-overflow: ellipsis;
+    }
+
+    .esri-expand__content--expanded label {
+        white-space: normal !important;
+        word-break: break-word !important;
+        font-size: 11px !important;
+    }
+
+    .esri-expand__content--expanded button {
+        white-space: normal !important;
+        word-break: break-word !important;
+        height: auto !important;
+    }
+
+    /* 6. Floating mobile popups positioned above the bottom ribbon */
+    .esri-popup__main-container,
+    .esri-popup--is-docked .esri-popup__main-container {
+        position: fixed !important;
+        bottom: 100px !important; 
+        left: 16px !important;             
+        right: 16px !important;           
+        width: auto !important;            
+        max-width: 420px !important;        
+        max-height: 35vh !important;       
+        margin: 0 auto !important;         
+        border-radius: 12px !important;     
+        box-shadow: var(--shadow-md) !important;
+        border: 2px solid var(--primary-blue) !important;
+        overflow-y: auto !important; 
+    }
+
+    .esri-popup__pointer {
+        display: none !important;           
+    }
+}

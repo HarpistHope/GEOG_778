@@ -1,0 +1,394 @@
+Subprefectural/municipal borders
+    AGOL name: ForeignHokkaido_AdminBoundaries
+    original file name: N03-20260101_01_GML
+    0 = subpre, NOT osh hiy
+    1 = municipalities
+    2 = oshima_hiyama borders
+    REST URL: https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_AdminBoundaries/FeatureServer 
+    Source: Japan National Land Numerical Information (国土数値情報) All rights reserved. National Land Information Division, National Spatial Planning and Regional Policy Bureau, MLIT of Japan 
+    Link: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html
+    Attributes: Scope 	Scope of administrative area 	Curved (GM_Surface)
+                Prefecture name
+                (N03_001) 	The name of a prefecture that is a wide-area local public body that encompasses municipalities as defined in Article II and Article 5 of the Local Autonomy Act in the area 	Character string type (CharacterString)
+                Hokkaido Promotion Bureau name
+                (N03_002) 	The name of the promotion bureau when the prefectural government is "Hokkaido" among the branch offices defined in the first paragraph of Article 155 of the Local Autonomy Act in the area 	Character string type (CharacterString)
+                County name
+                (N03_003) 	The name of the range consisting of one or more towns and villages as defined in Article 259 of the Local Autonomy Act in the area 	Character string type (CharacterString)
+                City, Town, Village
+                (N03_004) 	The name of the municipality and the special ward of the city, which are the basic local governments defined in the second paragraph (special ward of the capital) of the Local Government Act and Article 281 of the Local Autonomy Act in the area 	Character string type (CharacterString)
+                Name of the administrative district of the designated city
+                (N03_005) 	The name of the administrative district established in the designated city of the ordinance as defined in Article 252 of the Local Autonomy Act in the area 	Character string type (CharacterString)
+                National Local Government Code
+                (N03_007) 	A code expressed in five digits consisting of two prefectural codes specified in JIS X 0401 and three municipal codes specified in JIS X 0402 	Code List " Administrative Region Code "
+    Selected attributes: where N03_002 = 渡島総合振興局 OR 檜山振興局 
+    Original Spatial Reference: JGD 2011 6668 ---- The N03 National Land Numerical Information (KsjTmplt-N03-2026) dataset from MLIT is provided in JGD2011 (EPSG: 6668) or JGD2000 (EPSG: 4612)
+
+
+
+Municipal offices, etc. and public meeting facilities
+    AGOL name: ForeignHokkaido_municipal offices, etc. and public meeting facilities
+    original file name: P05-22_01_GML.zip 	
+    REST URL: https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_Municipal_Offices_etc_and_Public_Meeting_Facilities/FeatureServer
+    Source: Japan National Land Numerical Information (国土数値情報) All rights reserved. National Land Information Division, National Spatial Planning and Regional Policy Bureau, MLIT of Japan 
+    Link: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P05-2022.html 
+    Attributes:
+        (shp attribute name in brackets) 	Description 	Type of attribute
+        Location 	Location of municipal offices and public meeting facilities 	Point type (GM_Point)
+        Administrative area code
+        (P05_001) 	Code for Identifying Administrative Regions with Prefectural Code and Municipal Code 	Code List " Administrative Region Code "
+        Facility classification
+        (P05_002) 	Code for classification of municipal offices, etc. and public meeting facilities 	Code List " Facility Classification Code " (see below)
+        Name
+        (P05_003) 	Names of municipal offices, etc. and public meeting facilities 	Character string type (CharacterString)
+        Location
+        (P05_004) 	Location of municipal offices, etc. and public assembly facilities 	Character string type (CharacterString)
+    Selected attributes by location in ArcGIS Pro
+    Facility Classification Code:
+        対象施設 	コード 	備考
+        本庁（市役所、区役所、町役場、村役場）	1	 
+        支所、出張所、連絡所	2	名称が支所や出張所等となっているもの以外に「行政センター」も含む
+        上記以外の行政サービス施設	3	1,2以外の証明書交付等の行政サービス窓口を持つ施設
+        公立公民館	4	名称が公民館となっているもの、「全国公民館名鑑」に掲載されているもの
+        集会施設	5	公立公民館以外の公的集会施設
+
+        Target facility Code Remarks
+        Main office (city hall, ward office, town hall, village office) 1	 
+        Branches, Branch Offices, Liaison Offices 2 In addition to those whose name is Branches and Branch Offices, etc., including "administrative centers"
+        Administrative service facilities other than those listed above 3 Facilities with administrative service windows such as certificate issuance other than 1,2
+        Public Community Center 4 The name is a community center, but it is listed in "National Community Center Meikan"
+        Assembly facilities 5 Public gathering facilities other than public public facilities
+    Original Spatial Reference: JGD 2011 6668 ---- The N03 National Land Numerical Information (KsjTmplt-N03-2026) dataset from MLIT is provided in JGD2011 (EPSG: 6668) or JGD2000 (EPSG: 4612)
+
+
+Police Stations and Jurisdictions 
+    AGOL name: ForeignHokkaido_OshimaHiyama_Police
+    original file name: P18-12_01_GML.zip
+    1 = station points
+    2 = jurisdiction polygons
+    REST URL: https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_Police/FeatureServer
+    Source: Japan National Land Numerical Information (国土数値情報) All rights reserved. National Land Information Division, National Spatial Planning and Regional Policy Bureau, MLIT of Japan 
+    Link: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P18.html 
+    Attribute name
+        (shp attribute name in brackets) 	Description 	Type of attribute
+        Position 	Location of the police station. 	Point type (GM_Point)
+        Name
+        (P18_001) 	Name of police facility 	Character string type (CharacterString)  
+        Administrative area code
+        (P18_002) 	Code for Identifying Administrative Regions with Prefectural Code and Municipal Code 	Code List " Administrative Region Code "
+        Type Code
+        (P18_003) 	Classification of police facilities. 	Code List " Type Code "
+        Location
+        (P18_004) 	Location of the police facility. 	Character string type (CharacterString)
+        Locality information 	Land name 	Description
+        Police jurisdiction (face) 	Jurisdiction of police facilities
+        Attribute information
+        (Police Station Jurisdiction.shp) 	Attribute name
+        (shp attribute name in brackets) 	Description 	Type of attribute
+        Scope 	Jurisdiction range 	Curved (GM_Surface)
+        Name
+        (P18_005) 	Name of police facility 	Character string type (CharacterString)
+        Jurisdiction range (1 to n)
+        (P18_006～P018_020) 	Describe the jurisdiction of each police station (town street) 	Character string type (CharacterString)
+    Type Classification Code:
+        コード 	警察施設名
+        1 	警察本部
+        2 	警察署
+        3 	分庁舎
+        4 	交番
+        5 	駐在所
+        6 	派出所
+        7 	警察学校
+        8 	地域安全センター、連絡所等
+        Code Police facility name
+        1 Police headquarters
+        2 Police station
+        3 branch office building.
+        4 Cops
+        5 Expatriates
+        6 Source
+        7 Police school
+        8 Regional safety centers, liaison offices, etc.
+    Original Spatial Reference: JGD 2011 6668 ---- The N03 National Land Numerical Information (KsjTmplt-N03-2026) dataset from MLIT is provided in JGD2011 (EPSG: 6668) or JGD2000 (EPSG: 4612)
+
+
+
+Post Offices
+AGOL name: ForeignHokkaido_OshimaHiyama_PostOffices
+original file name: P30-13_01.zip 
+REST URL: https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_PostOffices/FeatureServer 
+Source: Japan National Land Numerical Information (国土数値情報) All rights reserved. National Land Information Division, National Spatial Planning and Regional Policy Bureau, MLIT of Japan 
+Link: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P30.html
+Attribute name
+    (shp attribute name in brackets) 	Description 	Type of attribute
+    Position 	Post Office Location 	Point type (GM_ Point)
+    Administrative area code
+    (P30_001) 	Code for identifying the kento where the post office exists, which consists of the prefectural code and the municipal code, 	Code list type
+    " Administrative Region Code "
+    Large classification of public facilities
+    (P30_002) 	Large classification by application of public facilities 	Code list type
+    " Public Facilities Large Classification Code "
+    Small classification of public facilities
+    (P30_003) 	Small classification by application of public facilities 	Code list type
+    " Public Facility Subclassification Code "
+    Post Office classification
+    (P30_004) 	Code for Identifying the Type of Post Office 	Code list type
+    " Post Office Classification Code "
+    Name
+    (P30_005) 	Official name of the post office. 	String type
+    Location
+    (P30_006) 	Location that was located in the name of the post office's municipality 	String type
+    Administrator Code
+    (P30_007) 	Code for compartmentalizing the post office administrator 	Code list type
+    " Administrator Code "
+Post office classification code:
+    コード 	対応する内容
+    18004	簡易郵便局
+    18006	直営郵便局
+    Code Correspondence
+    18004 Simple Post Office
+    18006 Direct post office
+Original Spatial Reference: JGD 2011 6668 
+
+
+
+Schools
+AGOL name: ForeignHokkaido_OshimaHiyama_Schools
+original file name: P29-23_01_GML.zip
+REST URL: https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_Schools/FeatureServer
+Source: Japan National Land Numerical Information (国土数値情報) All rights reserved. National Land Information Division, National Spatial Planning and Regional Policy Bureau, MLIT of Japan 
+Link: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P29-2023.html
+Attribute name
+    (shp attribute name in brackets) 	Description 	Type of attribute
+    Position 	Location of the school. 	Point type (GM_ Point)
+    Administrative area code
+    (P29_001) 	A code for identifying the kennel where the school exists, consisting of the prefectural code and the municipal code. 	Code list type
+    " Administrative Region Code "
+    School Code
+    (P29_002) 	Unique "school code" set in schools across the country 	String type
+    School classification
+    (P29_003) 	Code for identifying the type of school 	Code list type
+    " School Classification Code "
+    Name
+    (P29_004) 	Official name of the school. 	String type
+    Location
+    (P29_005) 	Location that was omitted from the name of the school's municipal district, town, village 	String type
+    Administrator Code
+    (P29_006) 	Code for compartmentalizing school administrators 	Code list type
+    " Administrator Code "
+    School closures
+    (P29_007) 	Code for identifying information during school closures 	Code list type
+    " School Closure Code "
+    Campus Code
+    (P29_008) 	Code for Distinguishing School Campuses 	Code list type
+    " Campus Code "
+    School name Remarks
+    (P29_009) 	Name of the campus, etc. 	String type
+School classification code P29_003:
+    コード 	対応する内容
+    16001 	小学校
+    16002 	中学校
+    16003 	中等教育学校
+    16004 	高等学校
+    16005 	高等専門学校
+    16006 	短期大学
+    16007 	大学
+    16011 	幼稚園
+    16012 	特別支援学校
+    16013 	幼保連携型認定こども園
+    16014 	義務教育学校
+    16015 	各種学校
+    16016 	専修学校
+    Code Correspondence
+    16001 Primary School
+    16002 Middle School
+    15000 Secondary schools
+    16004 High School
+    16005 College of Technology
+    16006 Junior College
+    16007 University
+    16011 Kindergarten
+    16012 Special Needs School
+    16013 Child health insurance cooperative certified children's park
+    16014 Compulsory School
+    16015 Various schools
+    16016 Specialized School
+Original Spatial Reference: JGD 2011 6668 
+
+
+Roadside Stations (Michi no Eki)
+AGOL name: ForeignHokkaido_OshimaHiyama_RoadsideStations
+original file name: P35-18_GML.zip
+REST URL: https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_Schools/FeatureServer
+Source: Japan National Land Numerical Information (国土数値情報) All rights reserved. National Land Information Division, National Spatial Planning and Regional Policy Bureau, MLIT of Japan 
+Link: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P35.html 
+Attribute name
+    (shp attribute name in brackets) 	Description 	Type of attribute
+    Position 	Location of the roadside station 	Point type (GM_Point)
+    Latitude
+    (P35_001) 	Latitude of the roadside station 	Real (Real)
+    Longitude
+    (P35_002) 	Longitude of the roadside station 	Real (Real)
+    Prefecture name
+    (P35_003) 	Prefecture name 	Character string type (CharacterString)
+    Name of municipality
+    (P35_004) 	Name of municipality 	Character string type (CharacterString)
+    Administrative area code
+    (P35_005) 	Administrative Code 	Code List " Administrative Region Code "
+    Roadside Station Name
+    (P35_006) 	Roadside Station Name 	Character string type (CharacterString)
+    Homepage address1
+    (P35_007) 	Roadside Station HP Address (first) 	Character string type (CharacterString)
+    Homepage address2
+    (P35_008) 	HP address of the roadside station (2nd) 	Character string type (CharacterString)
+    Homepage address3
+    (P35_009) 	HP address of the roadside station (third) 	Character string type (CharacterString)
+    Homepage address4
+    (P35_010) 	HP address of the roadside station (4th) 	Character string type (CharacterString)
+    With no ATM.
+    (P35_011) 	1: There is
+    2: None 	Numerical type (Integer)
+    With or without a baby bed
+    (P35_012) 	1: There is
+    2: None 	Numerical type (Integer)
+    With or without a restaurant
+    (P35_013) 	1: There is
+    2: None 	Numerical type (Integer)
+    Whether there are light meals or coffee shops
+    (P35_014) 	1: There is
+    2: None 	Numerical type (Integer)
+    No accommodation
+    (P35_015) 	1: There is
+    2: None 	Numerical type (Integer)
+    With or without hot spring facilities
+    (P35_016) 	1: There is
+    2: None 	Numerical type (Integer)
+    No camping, etc.
+    (P35_017) 	1: There is
+    2: None 	Numerical type (Integer)
+    With or without a park
+    (P35_018) 	1: There is
+    2: None 	Numerical type (Integer)
+    With or without an observation deck
+    (P35_019) 	1: There is
+    2: None 	Numerical type (Integer)
+    Museums and museums
+    (P35_020) 	1: There is
+    2: None 	Numerical type (Integer)
+    With or without a gas station
+    (P35_021) 	1: There is
+    2: None 	Numerical type (Integer)
+    With or without EV charging facilities
+    (P35_022) 	1: There is
+    2: None 	Numerical type (Integer)
+    With or without wireless LAN
+    (P35_023) 	1: There is
+    2: None 	Numerical type (Integer)
+    With or without a shower
+    (P35_024) 	1: There is
+    2: None 	Numerical type (Integer)
+    Experience facilities
+    (P35_025) 	1: There is
+    2: None 	Numerical type (Integer)
+    Whether or not there is a tourist guide
+    (P35_026) 	1: There is
+    2: None 	Numerical type (Integer)
+    Disabled Toilets
+    (P35_027) 	1: There is
+    2: None 	Numerical type (Integer)
+    With or without shops
+    (P35_028) 	1: There is
+    2: None 	Numerical type (Integer)
+Original Spatial Reference: JGD 2011 6668 
+
+
+
+
+Bus stop attribute: (file: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P11-2022.html)
+Attribute name
+(shp attribute name in brackets) 	Description 	Type of attribute
+Location 	Location of the bus stop 	Point type (GM_Point)
+Bus stop name
+(P11_001) 	Name of bus stop
+	String type
+Name of bus operator
+(P11_002) 	Name of business operator operating the bus route
+(Community bus is the name of the municipality) 	String type
+Bus system 1 to 35
+(P11_003_01～35) 	Route number and name of the bus route 	String type
+Bus classification code
+(P11_004_01～35) 	Classification by type of operation of bus route 	Code List " Bus Classification Code "
+Remarks
+(P11_005) 	Remarks 	String type
+
+
+Gas station attribute: (File P07-10_01_GML.zip) https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P07-2016.html
+Attribute name
+(shp attribute name in brackets) 	Description 	Type of attribute
+Location 	Location of fuel refueling stations 	Point type (GM_Point)
+Store classification code
+(P07_001) 	Code for store classification of fuel refueling stations 	Code List "Fuel Store Classification Code"
+1: SS (gas station)
+Location
+(P07_002) 	Location of fuel refueling stations 	Character string type (CharacterString)
+
+
+Evacuation Facilitys (File: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P20.html,  P20-12_01_GML.zip)
+ 	Facilities listed in the regional disaster prevention plan designated by the mayor of the municipality to evacuate residents in the event of a natural disaster or to rescue evacuating residents, etc.
+    Attributes:  	Attribute name
+(shp attribute in parentheses) 	Description 	Type of attribute
+Position 	Location of evacuation facilities 	GM_ Point
+Administrative area code
+(P20_001) 	A code for identifying the kenkaku area where the evacuation facility is located, consisting of the prefectural code and the municipal code 	Code List " Administrative Region Code "
+Name
+(P20_002) 	Name of evacuation facility 	String type
+Address
+(P20_003) 	Address of the evacuation facility 	String type
+Type of facility
+(P20_004) 	Types of Evacuation Facilities 	String type
+Capacity
+(P20_005) 	Capacity for each form of evacuation facility 	Integer type
+Facility size
+(P20_006) 	Area by form of evacuation facility
+(The unit is "m2)." 	String type
+Category: Disaster classifications 	Classification of disasters targeted by the facility 	
+	Earthquake disaster (P20_007) 	Boolean type
+    Tsunami disaster (P20_008) 	Boolean type
+    Water damage (P20_009) 	Boolean type
+    Volcanic disasters (P20_010) 	Boolean type
+    Others (P20_011) 	Boolean type
+    Unspecified (P20_012) 	Boolean type
+
+
+
+    IF MEGA FEATURE LAYER IS BETTER: 
+    Administrative points and polygons for Oshima and Hiyama subprefectures in Hokkaido, Japan.
+
+Layers include: 
+
+0: Municipal offices and public meeting facilities
+
+1: Evacuation facilities
+
+2: Schools
+
+3: Post Offices
+
+4: Police Stations
+
+5: Police Jurisdictions
+
+Original dataset summaries are available at the following links (all original information is provided in Japanese): 
+
+0: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P05-2022.html
+1: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P20.html
+2: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P29-2023.html
+3: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P30.html
+4 & 5: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P18.html 
+
+Original Open Datasets belong to Japan National Land Numerical Information (国土数値情報) All rights reserved. 
+
+
+I have a large excel file with a mix of japanese and english that details medical instituions that are foreigner friendly in Japan.
+I want to select only the page that details the Hokkaido institutions. 
+From within that page, I either want to select the locations within the Oshima and Hiyama regions by georeferrencing the excel file using addresses or by using a python script. 
+How can I do this whole process?
