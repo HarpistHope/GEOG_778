@@ -387,8 +387,3 @@ Original dataset summaries are available at the following links (all original in
 
 Original Open Datasets belong to Japan National Land Numerical Information (国土数値情報) All rights reserved. 
 
-
-I have a large excel file with a mix of japanese and english that details medical instituions that are foreigner friendly in Japan.
-I want to select only the page that details the Hokkaido institutions. 
-From within that page, I either want to select the locations within the Oshima and Hiyama regions by georeferrencing the excel file using addresses or by using a python script. 
-How can I do this whole process?
