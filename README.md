@@ -17,11 +17,11 @@ Foreign teachers in rural Japan face barriers due to language gaps and disparate
 
 | Dataset Name | Layer Type | Source & Retrieval | Use in App |
 | :--- | :--- | :--- | :--- |
-| **Administrative Boundaries** | Polygon Feature Layer | Hokkaido Open Data Portal (HARP) & Esri Japan AGOL[cite: 1] | Defines municipal boundaries for spatial indexing[cite: 1] and dropdown filtering. |
-| **Public Infrastructure & Hazards** | Point / Polygon | Japan National Land Numerical Information (NLNI) Portal[cite: 1, 2] | Locates municipal offices, health centers, and disaster/evacuation zones[cite: 2]. |
-| **Local Regulations & Trash** | Tabular / GeoJSON | Municipal Websites (e.g., Shiriuchi Waste Calendar)[cite: 2] | Provides localized waste-sorting rules and winter parking bans[cite: 2]. |
-| **Crowdsourced Networks** | Hosted Point Layer | Esri Survey123 Forms on AGOL[cite: 2] | Collects user-submitted events, language classes, and safety alerts[cite: 2]. |
-| **Vector Basemaps** | Vector Tile Layer | Esri / ArcGIS Online | Provides high-contrast summer/winter basemaps highlighting seasonal hazards[cite: 2]. |
+| **Administrative Boundaries** | Polygon Feature Layer | Hokkaido Open Data Portal (HARP) & Esri Japan AGOL | Defines municipal boundaries for spatial indexing and dropdown filtering. |
+| **Public Infrastructure & Hazards** | Point / Polygon | Japan National Land Numerical Information (NLNI) Portal | Locates municipal offices, health centers, and disaster/evacuation zones. |
+| **Local Regulations & Trash** | Tabular / GeoJSON | Municipal Websites (e.g., Shiriuchi Waste Calendar) | Provides localized waste-sorting rules and winter parking bans. |
+| **Crowdsourced Networks** | Hosted Point Layer | Esri Survey123 Forms on AGOL | Collects user-submitted events, language classes, and safety alerts. |
+| **Vector Basemaps** | Vector Tile Layer | Esri / ArcGIS Online | Provides high-contrast summer/winter basemaps highlighting seasonal hazards. |
 
 ---
 
