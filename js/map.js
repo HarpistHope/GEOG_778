@@ -1087,10 +1087,28 @@ export function initMap(viewContainerId, apiKey) {
                         const isWinter = (currentSeason === "winter");
                         snowHazardLayer.visible = isWinter;
 
-                        // 3. Sync the Control Panel Checkbox UI state
+                        // 3. Automatically hide boundary layers in winter (OFF in winter, ON in summer)
+                        if (typeof oshHiMuniBoundariesLayer !== "undefined") {
+                            oshHiMuniBoundariesLayer.visible = !isWinter;
+                        }
+                        if (typeof oshHiBoundariesLayer !== "undefined") {
+                            oshHiBoundariesLayer.visible = !isWinter;
+                        }
+
+                        // 4. Sync the Control Panel Checkbox UI state
                         const snowCb = controlPanelDiv.querySelector("#toggle-snow");
                         if (snowCb) {
                             snowCb.checked = isWinter;
+                        }
+
+                        // Sync checkboxes for boundaries in your control panel if you have them
+                        const municipalCb = controlPanelDiv.querySelector("#toggle-muni-boundaries");
+                        if (municipalCb) {
+                            municipalCb.checked = !isWinter;
+                        }
+                        const subprefCb = controlPanelDiv.querySelector("#toggle-oshhi-boundaries");
+                        if (subprefCb) {
+                            subprefCb.checked = !isWinter;
                         }
 
                         // 4. Update Button Label Text
