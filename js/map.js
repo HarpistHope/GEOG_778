@@ -36,7 +36,7 @@ const i18n = {
         layerRailLines: "Railway Lines"
     },
     JA: {
-        appTitle: "ForeignHokkaido (北海道の異国情緒)",
+        appTitle: "北海道の異国情緒",
         appSubtitle: "外国語指導助手(ALT) 向け地域生活防災マップ",
         seasonBtnWinter: "❄️ 冬季モード",
         seasonBtnSummer: "☀️ 夏季モード",
