@@ -1,42 +1,67 @@
-/* ForeignHokkaido style.css -- Google Gemini helped target specific elements for initial project mockup styling  */
+/* ==========================================================================
+   ForeignHokkaido - Modern Glassmorphism UI Stylesheet
+   Design System Architecture: Glassmorphism, Design Tokens & Fluid Layout
+   ========================================================================== */
 
 :root {
-    --primary-blue: #1b365d;
-    --accent-teal: #007ac2;
-    --dark-text: #151515;
-    --light-bg: #f8f9fa;
-    --border-color: #e2e8f0;
-    --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+    /* Color Palette - Vibrant Indigo/Slate Design System */
+    --color-primary: #1b365d;
+    --color-primary-hover: #2563eb;
+    --color-primary-subtle: rgba(27, 54, 93, 0.08);
+    --color-primary-glow: rgba(27, 54, 93, 0.25);
+
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+
+    --color-surface-base: #ffffff;
+    --color-surface-glass: rgba(255, 255, 255, 0.90);
+    --color-surface-hover: rgba(241, 245, 249, 0.8);
+    --color-border: rgba(226, 232, 240, 0.85);
+    --color-border-subtle: rgba(241, 245, 249, 0.9);
+
+    --color-text-title: #0f172a;
+    --color-text-body: #334155;
+    --color-text-muted: #64748b;
+
+    /* Typography */
+    --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  
+    /* Elevating Shadows & Geometry */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 12px 28px -6px rgba(15, 23, 42, 0.12), 0 8px 12px -4px rgba(15, 23, 42, 0.05);
+    
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-full: 9999px;
+    
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 240ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Global Box-Sizing Fix for Everything */
+/* Global Box-Sizing & Base Reset */
 *, *:before, *:after {
     box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
 html, body {
-    padding: 0;
-    margin: 0;
     height: 100vh;
     width: 100vw;
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: var(--dark-text);
-    background-color: var(--light-bg);
+    font-family: var(--font-family-base);
+    color: var(--color-text-body);
+    background-color: #0b0f19;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     -webkit-tap-highlight-color: transparent;
 }
 
-.esri-widget, 
-.esri-popup__content,
-.esri-popup__header-title {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
-    color: var(--dark-text) !important;
-}
-
+/* Map View Container */
 #viewDiv {
-    padding: 0;
-    margin: 0;
     height: 100%;
     width: 100%;
     position: absolute;
@@ -45,132 +70,145 @@ html, body {
     z-index: 1;
 }
 
-/* Floating Top Header Overlay Ribbon (Desktop Default) */
+/* Esri Widget Global Font Polish */
+.esri-widget, 
+.esri-popup__content,
+.esri-popup__header-title {
+    font-family: var(--font-family-base) !important;
+    color: var(--color-text-title) !important;
+}
+
+/* ==========================================================================
+   FLOATING TOP HEADER OVERLAY RIBBON (Desktop Default)
+   ========================================================================== */
 .app-header {
     position: absolute;
-    top: 12px;
+    top: 16px;
     left: 50%;
-    height: 60px;
+    height: 56px;
     transform: translateX(-50%);
     z-index: 99;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    background: rgba(255, 255, 255, 0.95);
-    padding: 8px 16px;
-    border-radius: 8px;
-    box-shadow: var(--shadow-md);
-    min-width: 320px;
-    border: 1px solid var(--border-color);
+    gap: 18px;
+    background: var(--color-surface-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 8px 18px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    min-width: 340px;
+    border: 1px solid var(--color-border);
 }
 
 .header-title {
-    font-weight: bold;
-    font-size: 14px;
-    color: var(--primary-blue);
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--color-primary);
+    letter-spacing: -0.01em;
 }
 
 .header-subtitle {
-    font-size: 10px;
-    color: #666;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    margin-top: 1px;
 }
 
 .header-controls {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     align-items: center;
 }
 
 .header-btn {
-    background: #eef2f5;
-    height: 40px;
-    border: 1px solid #ccc;
-    padding: 5px 10px;
-    font-size: 11px;
-    border-radius: 4px;
+    background: #f8fafc;
+    height: 36px;
+    border: 1px solid var(--color-border);
+    padding: 0 12px;
+    font-size: 0.75rem;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-weight: 600;
-    transition: all 0.2s ease;
+    color: var(--color-text-body);
+    transition: all var(--transition-fast);
 }
 
 .header-btn:hover {
-    background: #e2e8f0;
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: var(--color-text-title);
 }
 
 .header-btn.primary {
-    background: var(--primary-blue);
+    background: var(--color-primary);
     color: white;
     border: none;
+    box-shadow: 0 2px 6px var(--color-primary-glow);
 }
 
 .header-btn.primary:hover {
-    background: var(--accent-teal);
+    background: var(--color-primary-hover);
 }
 
 /* Core Esri Widgets Interfacing */
 .esri-widget--button, 
 .esri-widget {
-    background-color: #ffffff !important;
-    color: var(--primary-blue) !important;
-    border-radius: 6px !important;
-    box-shadow: var(--shadow-sm) !important;
-    border: 1px solid var(--border-color) !important; 
+    background-color: var(--color-surface-base) !important;
+    color: var(--color-primary) !important;
+    border-radius: var(--radius-sm) !important;
+    box-shadow: var(--shadow-md) !important;
+    border: 1px solid var(--color-border) !important; 
+    transition: all var(--transition-fast);
 }
 
+.esri-widget--button:hover {
+    background-color: #f8fafc !important;
+}
 
 /* Standalone Custom Map Controls Button */
 #controlPanelCustomBtn {
     width: auto !important;
-    min-width: 120px !important;
-    height: 32px !important;
-    padding: 0 14px !important;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    min-width: 130px !important;
+    height: 36px !important;
+    padding: 0 16px !important;
+    font-family: var(--font-family-base) !important;
     font-weight: 600 !important;
-    font-size: 14px !important;
+    font-size: 0.8rem !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     cursor: pointer !important;
     white-space: nowrap !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
-
-/* Desktop Widget Offsets
-.esri-ui-top-left, .esri-ui-top-right {
-    top: 5px !important;
-} */
-
-/* .esri-attribution {
-    background-color: rgba(255, 255, 255, 0.85) !important;
-    padding: 3px 8px !important;
-    font-size: 10px !important;
-    border-top-left-radius: 4px;
-    z-index: 10 !important;
-} */
 
 
 /* ==========================================================================
    MOBILE SCREEN CONFIGURATIONS (< 768px)
    ========================================================================== */
-
 @media (max-width: 768px) {
     
     /* 1. Move Header Ribbon to the Bottom */
     .app-header {
         top: auto !important;
-        bottom: 22px !important;
+        bottom: 20px !important;
         left: 50% !important;
         transform: translateX(-50%) !important;
-        height: 75px !important;
-        width: 98% !important;
+        height: 64px !important;
+        width: 96% !important;
         min-width: unset !important;
         padding: 8px 12px !important;
         flex-direction: row !important;
         justify-content: space-between !important;
         align-items: center !important;
-        background: rgba(255, 255, 255, 0.96) !important;
-        backdrop-filter: blur(8px);
+        background: var(--color-surface-glass) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
         z-index: 999 !important;
+        border-radius: var(--radius-md) !important;
     }
 
     .header-text, .header-subtitle {
@@ -186,53 +224,36 @@ html, body {
     .header-btn {
         flex: 1 !important;
         padding: 6px 4px !important;
-        font-size: 10px !important;
-        min-height: 36px !important;
+        font-size: 0.7rem !important;
+        min-height: 38px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         text-align: center !important;
     }
 
-    /* 2. Pin Esri Attribution cleanly to the bottom edge
-    .esri-attribution {
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 4px !important;
-        right: 0 !important;
-        width: 98% !important;
-        padding: 2px 4px !important;
-        z-index: 999 !important;
-    } */
-
-    /* 3. Reset top-left widgets */
-    .esri-ui-top-left, .esri-ui-top-right {
-        top: 5px !important;
-    }
-
-    /* 4. Strictly Constrain Expanded Drawers on Mobile */
+    /* 2. Strictly Constrain Expanded Drawers on Mobile */
     .esri-expand__content--expanded {
         position: fixed !important;
-        top: 15px !important;
+        top: 16px !important;
         left: 55px !important; 
-        width: 250px !important;
+        width: 260px !important;
         max-width: calc(90vw - 60px) !important; 
         max-height: 60vh !important;
         overflow-y: auto !important; 
-        box-shadow: var(--shadow-md) !important;
-        border-radius: 8px !important;
+        box-shadow: var(--shadow-lg) !important;
+        border-radius: var(--radius-md) !important;
         z-index: 9999 !important;
-        background: #ffffff !important;
+        background: var(--color-surface-base) !important;
     }
 
     .esri-expand__content--expanded > div,
     .esri-expand__content--expanded .esri-widget {
         width: 100% !important;
         max-width: 100% !important;
-        background: #ffffff !important;
+        background: var(--color-surface-base) !important;
     }
 
-    /* 5. Fix overflowing elements strictly inside mobile expanded panels */
     .esri-expand__content--expanded select {
         width: 100% !important;
         max-width: 100% !important;
@@ -242,33 +263,178 @@ html, body {
     .esri-expand__content--expanded label {
         white-space: normal !important;
         word-break: break-word !important;
-        font-size: 11px !important;
+        font-size: 0.75rem !important;
     }
 
-    .esri-expand__content--expanded button {
-        white-space: normal !important;
-        word-break: break-word !important;
-        height: auto !important;
-    }
-
-    /* 6. Floating mobile popups positioned above the bottom ribbon */
+    /* 3. Floating mobile popups positioned above the bottom ribbon */
     .esri-popup__main-container,
     .esri-popup--is-docked .esri-popup__main-container {
         position: fixed !important;
-        bottom: 100px !important; 
-        left: 16px !important;             
-        right: 16px !important;           
-        width: auto !important;            
-        max-width: 420px !important;        
-        max-height: 35vh !important;       
-        margin: 0 auto !important;         
-        border-radius: 12px !important;     
-        box-shadow: var(--shadow-md) !important;
-        border: 2px solid var(--primary-blue) !important;
+        bottom: 96px !important; 
+        left: 16px !important;            
+        right: 16px !important;          
+        width: auto !important;           
+        max-width: 420px !important;      
+        max-height: 35vh !important;      
+        margin: 0 auto !important;        
+        border-radius: var(--radius-md) !important;    
+        box-shadow: var(--shadow-lg) !important;
+        border: 1px solid var(--color-border) !important;
         overflow-y: auto !important; 
+        background: var(--color-surface-base) !important;
     }
 
     .esri-popup__pointer {
-        display: none !important;           
+        display: none !important;         
     }
 }
+
+/* Sleek Glassmorphism Popup Overrides */
+.esri-popup__main-container {
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+.esri-popup__header {
+    background: transparent !important;
+    padding: 14px 16px 8px 16px !important;
+}
+
+.esri-popup__header-title {
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    color: var(--color-primary) !important;
+}
+
+.esri-popup__content {
+    padding: 0 16px 16px 16px !important;
+    font-size: 0.82rem !important;
+    line-height: 1.5 !important;
+}
+
+.esri-popup__button {
+    color: var(--color-primary) !important;
+}
+
+.esri-popup__button:hover {
+    background: rgba(27, 54, 93, 0.08) !important;
+}
+
+/* Clean Onboarding Tour Overlay (Zero Blur Bugs) */
+.tour-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.75); /* Rich, professional dark dim */
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.tour-modal {
+    background: #ffffff;
+    width: 90%;
+    max-width: 420px;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+    font-family: system-ui, -apple-system, sans-serif;
+    transform: translateY(10px);
+    transition: transform 0.3s ease;
+    z-index: 10002;
+}
+
+.tour-overlay.active {
+    opacity: 1;
+}
+
+.tour-overlay.active .tour-modal {
+    transform: translateY(0);
+}
+
+/* The Spotlight: Pops cleanly above the dark overlay with a glowing ring */
+.tour-highlight {
+    position: relative !important;
+    z-index: 10001 !important;
+    box-shadow: 0 0 0 4px #3b82f6, 0 0 25px rgba(59, 130, 246, 0.9) !important;
+    background-color: #ffffff !important;
+    color: #1b365d !important;
+    border-radius: 6px;
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+}
+
+.tour-dimmed {
+    opacity: 0.35;
+    transition: opacity 0.2s ease;
+}
+
+.tour-header {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tour-step-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.tour-body {
+    font-size: 13.5px;
+    color: #475569;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.tour-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tour-btn {
+    padding: 8px 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+}
+
+.tour-btn-secondary {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.tour-btn-secondary:hover {
+    background: #e2e8f0;
+}
+
+.tour-btn-primary {
+    background: #1b365d;
+    color: #ffffff;
+}
+
+.tour-btn-primary:hover {
+    background: #122543;
+}
+

@@ -387,3 +387,7 @@ Original dataset summaries are available at the following links (all original in
 
 Original Open Datasets belong to Japan National Land Numerical Information (国土数値情報) All rights reserved. 
 
+Moutain Collapse, Landslide, Avalanche Risk Zones (Polygon GeoJSON)
+https://ckan.hoda.jp/dataset/sanchisaigaikikenchiku_hokkaido
+Source Organization: 北海道水産林務部林務局治山課 (Hokkaido Department of Fishery and Forestry, Forestry Bureau, Soil Conservation Division)   Dataset Title: 山地災害危険地区 GISデータ (令和2年/2020年末時点) (Mountain Disaster Hazard Area GIS Data)   License: Creative Commons Attribution 4.0 International (CC BY 4.0) / 北海道オープンデータ利用規約
+Hazard Layer Source: Mountain Disaster Hazard Areas GIS Data (2020), published by the Hokkaido Department of Fishery and Forestry, Forestry Bureau (Hokkaido Open Data, CC BY 4.0). Modified by ForeignHokkaido to clip regional bounds.
