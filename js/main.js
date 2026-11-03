@@ -608,15 +608,128 @@ const tourSteps = [
 
 let currentTourStep = 0;
 
+// function clearTourHighlights() {
+//     document.querySelectorAll('.tour-highlight').forEach(el => {
+//         el.classList.remove('tour-highlight');
+//     });
+//     document.querySelectorAll('.tour-dimmed').forEach(el => {
+//         el.classList.remove('tour-dimmed');
+//     });
+//     const header = document.getElementById('appHeader');
+//     if (header) header.style.zIndex = "";
+// }
+
+// function renderTourModal() {
+//     clearTourHighlights();
+//     const existing = document.getElementById('customTourOverlay');
+//     if (existing) existing.remove();
+
+//     const step = tourSteps[currentTourStep];
+
+//     if (step.target) {
+//         const targetEl = document.querySelector(step.target);
+//         if (targetEl) {
+//             targetEl.classList.add('tour-highlight');
+//             targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+//             // Elevate header layer and dim sibling buttons so only the target pops
+//             if (step.target.includes('btn-') || step.target === '#appHeader') {
+//                 const header = document.getElementById('appHeader');
+//                 if (header) {
+//                     header.style.zIndex = "10000";
+//                     header.querySelectorAll('.header-btn').forEach(btn => {
+//                         if (btn !== targetEl) btn.classList.add('tour-dimmed');
+//                     });
+//                 }
+//             }
+//         }
+//     }
+
+//     const overlay = document.createElement('div');
+//     overlay.id = 'customTourOverlay';
+//     overlay.className = 'tour-overlay';
+
+//     overlay.innerHTML = `
+//         <div class="tour-modal">
+//             <div class="tour-header">
+//                 <span>${step.title}</span>
+//                 <span class="tour-step-count">Step ${currentTourStep + 1} of ${tourSteps.length}</span>
+//             </div>
+//             <div class="tour-body">
+//                 ${step.text}
+//             </div>
+//             <div class="tour-footer">
+//                 <button id="tourPrevBtn" class="tour-btn tour-btn-secondary" ${currentTourStep === 0 ? 'style="visibility:hidden;"' : ''}>Back</button>
+//                 <div style="display: flex; gap: 8px;">
+//                     <button id="tourSkipBtn" class="tour-btn tour-btn-secondary">Skip Tour</button>
+//                     <button id="tourNextBtn" class="tour-btn tour-btn-primary">${currentTourStep === tourSteps.length - 1 ? 'Finish' : 'Next'}</button>
+//                 </div>
+//             </div>
+//         </div>
+//     `;
+
+//     document.body.appendChild(overlay);
+//     setTimeout(() => overlay.classList.add('active'), 10);
+
+//     document.getElementById('tourSkipBtn').addEventListener('click', closeTour);
+//     document.getElementById('tourNextBtn').addEventListener('click', () => {
+//         if (currentTourStep < tourSteps.length - 1) {
+//             currentTourStep++;
+//             renderTourModal();
+//         } else {
+//             closeTour();
+//             localStorage.setItem('hasSeenTour', 'true');
+//         }
+//     });
+
+//     const prevBtn = document.getElementById('tourPrevBtn');
+//     if (prevBtn) {
+//         prevBtn.addEventListener('click', () => {
+//             if (currentTourStep > 0) {
+//                 currentTourStep--;
+//                 renderTourModal();
+//             }
+//         });
+//     }
+// }
+
+// Keep track of the original parent so we can put the button back when the tour moves/closes
+let originalControlPanelParent = null;
+let originalControlPanelNextSibling = null;
+
 function clearTourHighlights() {
     document.querySelectorAll('.tour-highlight').forEach(el => {
         el.classList.remove('tour-highlight');
+        el.style.zIndex = "";
     });
     document.querySelectorAll('.tour-dimmed').forEach(el => {
         el.classList.remove('tour-dimmed');
     });
+    
+    // Reset header
     const header = document.getElementById('appHeader');
-    if (header) header.style.zIndex = "";
+    if (header) {
+        header.style.zIndex = "";
+        header.style.position = "";
+    }
+
+    // Put the control panel button back to its original Esri home if it was moved
+    const controlBtn = document.getElementById('controlPanelCustomBtn');
+    if (controlBtn && originalControlPanelParent) {
+        controlBtn.style.position = "";
+        controlBtn.style.top = "";
+        controlBtn.style.left = "";
+        controlBtn.style.zIndex = "";
+        controlBtn.style.transform = "";
+        
+        if (originalControlPanelNextSibling) {
+            originalControlPanelParent.insertBefore(controlBtn, originalControlPanelNextSibling);
+        } else {
+            originalControlPanelParent.appendChild(controlBtn);
+        }
+        originalControlPanelParent = null;
+        originalControlPanelNextSibling = null;
+    }
 }
 
 function renderTourModal() {
@@ -632,15 +745,34 @@ function renderTourModal() {
             targetEl.classList.add('tour-highlight');
             targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-            // Elevate header layer and dim sibling buttons so only the target pops
+            // 1. If target is in the header
             if (step.target.includes('btn-') || step.target === '#appHeader') {
                 const header = document.getElementById('appHeader');
                 if (header) {
                     header.style.zIndex = "10000";
+                    header.style.position = "relative";
                     header.querySelectorAll('.header-btn').forEach(btn => {
                         if (btn !== targetEl) btn.classList.add('tour-dimmed');
                     });
                 }
+            }
+            // 2. If target is the map control panel button, temporarily pop it out of Esri's container onto the body!
+            else if (step.target === '#controlPanelCustomBtn') {
+                originalControlPanelParent = targetEl.parentNode;
+                originalControlPanelNextSibling = targetEl.nextSibling;
+
+                // Get exact bounding box before moving
+                const rect = targetEl.getBoundingClientRect();
+
+                // Move to body and make fixed so it stays in the exact same visual spot
+                document.body.appendChild(targetEl);
+                targetEl.style.position = "fixed";
+                targetEl.style.top = `${rect.top}px`;
+                targetEl.style.left = `${rect.left}px`;
+                targetEl.style.zIndex = "10001";
+
+                // Re-apply tour-highlight class after appending to body
+                targetEl.classList.add('tour-highlight');
             }
         }
     }

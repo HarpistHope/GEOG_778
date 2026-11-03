@@ -7,9 +7,17 @@ export let currentSeason = "summer"; // 'summer' | 'winter'
 export let currentLang = "EN"; // 'EN' | 'JA'
 
 // Module-scoped layer references for global popup & language updates
-export let snowHazardLayer, oshHiBoundariesLayer, oshHiMuniBoundariesLayer, railwayStationsLayer, medicalLayer, avalancheLayer, landslideLayer;
+// export let snowHazardLayer, oshHiBoundariesLayer, oshHiMuniBoundariesLayer, railwayStationsLayer, medicalLayer, avalancheLayer, landslideLayer, skiResortsLayer;
 
-// Function to set language state
+// Module-scoped layer references for global popup & language updates
+export let snowHazardLayer, oshHiBoundariesLayer, oshHiMuniBoundariesLayer, 
+           railwayStationsLayer, medicalLayer, avalancheLayer, landslideLayer, 
+           skiResortsLayer, evacuationSheltersLayer, municipalOfficesLayer, 
+           policeStationsLayer, postOfficesLayer, schoolsLayer, 
+           roadsideStationsLayer, wildlifeReservesLayer, gasStationsLayer, 
+           busStopsLayer, oshHiTrashLayer, railwayLinesLayer;
+
+           // Function to set language state
 export function setLanguage(lang) {
     currentLang = lang;
     return currentLang;
@@ -138,42 +146,208 @@ export const municipalBoundaryPopupJA = {
     }]
 };
 
-const municipalPopup = {
-    title: "{P05_003}",
-    content: [{ type: "text", text: "<b>Address:</b> {P05_004}<br><b>Facility Type:</b> {expression/facilityType}" }],
-    expressionInfos: [{
-        name: "facilityType",
-        title: "Facility Classification",
-        expression: `
-            When(
-                $feature.P05_002 == '1', 'Town Hall / City Hall (本庁)',
-                $feature.P05_002 == '2', 'Branch / Liaison Office (支所・出張所)',
-                $feature.P05_002 == '3', 'Administrative Service Window (行政サービス)',
-                $feature.P05_002 == '4', 'Public Community Center (公民館)',
-                $feature.P05_002 == '5', 'Public Assembly Facility (集会施設)',
-                'Other Municipal Facility'
-            )
+export const municipalOfficePopupEN = {
+    title: "🏛️ {expression/facNameEN}",
+    content: [{
+        type: "text",
+        text: `
+            <div style="font-family: system-ui, sans-serif; line-height: 1.5; font-size: 13px;">
+                <b>What you can do here:</b><br>
+                <p style="margin: 4px 0 8px 0; color: #333; line-height: 1.4;">
+                    {expression/facDescEN}
+                </p>
+                <b>Address:</b> {P05_004}<br>
+                <i style="font-size: 11px; color: #666; display: block; margin-top: 4px;">
+                    💡 Address (only available in Japanese)
+                </i>
+            </div>
         `
-    }]
+    }],
+    expressionInfos: [
+        {
+            name: "facNameEN",
+            expression: `
+                var code = Text($feature.P05_002);
+                if (code == '1') { return 'Town / City Hall'; }
+                if (code == '2') { return 'Branch & Liaison Office'; }
+                if (code == '4') { return 'Public Community Center'; }
+                return 'Municipal Facility';
+            `
+        },
+        {
+            name: "facDescEN",
+            expression: `
+                var code = Text($feature.P05_002);
+                if (code == '1') {
+                    return 'Main municipal headquarters. Handle residence registration (Juminhyo), My Number card setup, National Health Insurance, local taxes, and official certificate issuance.';
+                } else if (code == '2') {
+                    return 'Local administrative branch office. Convenient for routine certificate issuance and minor municipal paperwork closer to your neighborhood without visiting the main hall.';
+                } else if (code == '4') {
+                    return 'Public community gathering facility (Kouminkan). Used for local Japanese classes, cultural clubs, town meetings, and community events.';
+                }
+                return 'General municipal service location.';
+            `
+        }
+    ]
 };
 
-const policePopup = {
-    title: "{P18_001}",
-    content: [{ type: "text", text: "<b>Address:</b> {P18_004}<br><b>Type:</b> {expression/policeType}" }],
-    expressionInfos: [{
-        name: "policeType",
-        title: "Police Facility Type",
-        expression: `
-            When(
-                $feature.P18_003 == '1', 'Prefectural Police HQ (道警本部)',
-                $feature.P18_003 == '2', 'Main Police Station (警察署)',
-                $feature.P18_003 == '3', 'Branch Office (分庁舎)',
-                $feature.P18_003 == '4', 'Police Box (交番 - Koban)',
-                $feature.P18_003 == '5', 'Residential Police Box (駐在所 - Chuzaisho)',
-                'Police Facility'
-            )
+export const municipalOfficePopupJA = {
+    title: "🏛️ {expression/facNameJA}",
+    content: [{
+        type: "text",
+        text: `
+            <div style="font-family: sans-serif; line-height: 1.5; font-size: 13px;">
+                <b>主な利用目的:</b><br>
+                <p style="margin: 4px 0 8px 0; color: #333; line-height: 1.4;">
+                    {expression/facDescJA}
+                </p>
+                <b>所在地:</b> {P05_004}
+            </div>
         `
-    }]
+    }],
+    expressionInfos: [
+        {
+            name: "facNameJA",
+            expression: `
+                var code = Text($feature.P05_002);
+                if (code == '1') { return '役場・市役所'; }
+                if (code == '2') { return '支所・出張所'; }
+                if (code == '4') { return '公立公民館'; }
+                return '行政施設';
+            `
+        },
+        {
+            name: "facDescJA",
+            expression: `
+                var code = Text($feature.P05_002);
+                if (code == '1') {
+                    return '住民登録、マイナンバー、国民健康保険、税金手続き、各種証明書の発行を行う本庁舎です。';
+                } else if (code == '2') {
+                    return '証明書の交付や地域の行政手続きを行う身近な支所・出張所です。';
+                } else if (code == '4') {
+                    return '地域の集会、講座、サークル活動などに利用される公立公民館です。';
+                }
+                return '地域の公共施設です。';
+            `
+        }
+    ]
+};
+
+export const policePopupEN = {
+    title: "👮 {expression/policeTitleEN}",
+    content: [{
+        type: "text",
+        text: `
+            <div style="font-family: system-ui, sans-serif; line-height: 1.5; font-size: 13px;">
+                <b>What you can do here:</b><br>
+                <p style="margin: 4px 0 8px 0; color: #333; line-height: 1.4;">
+                    {expression/policeDescEN}
+                </p>
+                <b>Address:</b> {P18_004}<br>
+                <i style="font-size: 11px; color: #666; display: block; margin-top: 4px;">
+                    💡 Address (only available in Japanese)
+                </i>
+            </div>
+        `
+    }],
+    expressionInfos: [
+        {
+            name: "policeTitleEN",
+            expression: `
+                var raw = $feature.P18_001;
+                var code = $feature.P18_003;
+                if (IsEmpty(raw)) { raw = ""; }
+                
+                if (code == 1 || code == '1') { return 'Prefectural Police Headquarters'; }
+                if (code == 2 || code == '2' || (Find('警察署', raw) > -1 && Find('交番', raw) == -1 && Find('駐在所', raw) == -1)) { return 'Main Police Station'; }
+                if (code == 3 || code == '3') { return 'Police Sub-station'; }
+                if (code == 4 || code == '4' || Find('交番', raw) > -1) { return 'Police Box (Koban)'; }
+                if (code == 5 || code == '5' || Find('駐在所', raw) > -1) { return 'Residential Police Box (Chuzaisho)'; }
+                
+                return 'Police Facility';
+            `
+        },
+        {
+            name: "policeDescEN",
+            expression: `
+                var raw = $feature.P18_001;
+                var code = $feature.P18_003;
+                if (IsEmpty(raw)) { raw = ""; }
+
+                if (code == 4 || code == '4' || Find('交番', raw) > -1) {
+                    return "Urban police box (Koban). Go here to report lost or found items, ask for walking directions, or seek immediate local emergency aid.";
+                }
+                if (code == 5 || code == '5' || Find('駐在所', raw) > -1) {
+                    return "Rural residential police box (Chuzaisho) where a resident officer lives and patrols. Go here for local lost and found, community safety concerns, or neighborhood emergencies.";
+                }
+                if (code == 3 || code == '3') {
+                    return "Regional police branch office providing administrative police services and local emergency response.";
+                }
+                if (code == 1 || code == '1' || code == 2 || code == '2' || Find('警察署', raw) > -1) {
+                    return "Full-service police headquarters. Visit here for criminal matters, filing formal crime/lost property reports, updating driver's licenses, and obtaining official certificates.";
+                }
+
+                return "Police facility for local safety, reporting lost items, and emergency assistance.";
+            `
+        }
+    ]
+};
+
+export const policePopupJA = {
+    title: "👮 {expression/policeTitleJA}",
+    content: [{
+        type: "text",
+        text: `
+            <div style="font-family: sans-serif; line-height: 1.5; font-size: 13px;">
+                <b>主な利用目的:</b><br>
+                <p style="margin: 4px 0 8px 0; color: #333; line-height: 1.4;">
+                    {expression/policeDescJA}
+                </p>
+                <b>所在地:</b> {P18_004}
+            </div>
+        `
+    }],
+    expressionInfos: [
+        {
+            name: "policeTitleJA",
+            expression: `
+                var raw = $feature.P18_001;
+                var code = $feature.P18_003;
+                if (IsEmpty(raw)) { raw = ""; }
+                
+                if (code == 1 || code == '1') { return '北海道警察本部'; }
+                if (code == 2 || code == '2' || (Find('警察署', raw) > -1 && Find('交番', raw) == -1 && Find('駐在所', raw) == -1)) { return '警察署'; }
+                if (code == 3 || code == '3') { return '分庁舎'; }
+                if (code == 4 || code == '4' || Find('交番', raw) > -1) { return '交番'; }
+                if (code == 5 || code == '5' || Find('駐在所', raw) > -1) { return '駐在所'; }
+                
+                return '警察施設';
+            `
+        },
+        {
+            name: "policeDescJA",
+            expression: `
+                var raw = $feature.P18_001;
+                var code = $feature.P18_003;
+                if (IsEmpty(raw)) { raw = ""; }
+
+                if (code == 4 || code == '4' || Find('交番', raw) > -1) {
+                    return "街頭の警察拠点（交番）です。道案内、落とし物の届出、緊急時の初期対応を行います。";
+                }
+                if (code == 5 || code == '5' || Find('駐在所', raw) > -1) {
+                    return "地域密着型の駐在所です。地域の防犯巡回、道案内、落とし物の届出、緊急時の初期対応を行います。";
+                }
+                if (code == 3 || code == '3') {
+                    return "地域警察の分庁舎です。行政手続きや地域の安全窓口として機能しています。";
+                }
+                if (code == 1 || code == '1' || code == 2 || code == '2' || Find('警察署', raw) > -1) {
+                    return "警察の総合庁舎です。事件・事故の届出、落とし物の捜索・届出、運転免許手続きなどの窓口業務を行っています。";
+                }
+
+                return "地域の安全・防犯・緊急対応を行う警察施設です。";
+            `
+        }
+    ]
 };
 
 const postOfficePopup = {
@@ -239,26 +413,61 @@ const roadsidePopup = {
     ]
 };
 
-const disasterPopup = {
-    title: "Shelter: {P20_002}",
+export const shelterPopupEN = {
+    title: "🛡️ {P20_002}",
     content: [{
         type: "text",
         text: `
-            <b>Address:</b> {P20_003}<br>
-            <b>Facility Type:</b> {P20_004}<br>
-            <b>Capacity:</b> {P20_005} persons<br><br>
-            <b>Designated Hazards:</b><br>
-            • 🌊 Tsunami: {expression/tsunami}<br>
-            • 🌋 Volcanic Activity: {expression/volcano}<br>
-            • 🏚️ Earthquake: {expression/earthquake}<br>
-            • 🌧️ Flood/Water Hazard: {expression/flood}
+            <div style="font-family: system-ui, sans-serif; line-height: 1.5; font-size: 13px;">
+                <b>Facility Type:</b> {P20_004}<br>
+                <b>Address:</b> {P20_003}<br>
+                <b>Designated Capacity:</b> {expression/fmtCapacityEN}<br>
+                <hr style="border: none; border-top: 1px solid #ddd; margin: 8px 0 6px 0;">
+                <b>Designated Hazard Suitability:</b><br>
+                • 🏚️ Earthquake: {expression/eqEN}<br>
+                • 🌊 Tsunami: {expression/tsuEN}<br>
+                • 🌧️ Flood / Storm Surge: {expression/fldEN}<br>
+                • 🌋 Volcanic Activity: {expression/volEN}<br>
+                • ⛰️ Landslide / Mudflow: {expression/lsEN}
+            </div>
         `
     }],
     expressionInfos: [
-        { name: "tsunami", expression: "IIF($feature.P20_008 == 1 || $feature.P20_008 == 'true', 'Designated', 'Not Designated')" },
-        { name: "volcano", expression: "IIF($feature.P20_010 == 1 || $feature.P20_010 == 'true', 'Designated', 'Not Designated')" },
-        { name: "earthquake", expression: "IIF($feature.P20_007 == 1 || $feature.P20_007 == 'true', 'Designated', 'Not Designated')" },
-        { name: "flood", expression: "IIF($feature.P20_009 == 1 || $feature.P20_009 == 'true', 'Designated', 'Not Designated')" }
+        { name: "fmtCapacityEN", expression: "var c = $feature.P20_005; if (IsEmpty(c) || Number(c) <= 0) return 'Unspecified'; return Text(c, '#,###') + ' persons';" },
+        { name: "eqEN", expression: "IIF($feature.P20_007 == 1 || Text($feature.P20_007) == 'true', '✅ Designated Safe', '❌ Not Designated')" },
+        { name: "tsuEN", expression: "IIF($feature.P20_008 == 1 || Text($feature.P20_008) == 'true', '✅ Designated Safe', '❌ Not Designated')" },
+        { name: "fldEN", expression: "IIF($feature.P20_009 == 1 || Text($feature.P20_009) == 'true', '✅ Designated Safe', '❌ Not Designated')" },
+        { name: "volEN", expression: "IIF($feature.P20_010 == 1 || Text($feature.P20_010) == 'true', '✅ Designated Safe', '❌ Not Designated')" },
+        { name: "lsEN", expression: "IIF($feature.P20_011 == 1 || Text($feature.P20_011) == 'true', '✅ Designated Safe', '❌ Not Designated')" }
+    ]
+};
+
+export const shelterPopupJA = {
+    title: "🛡️ {P20_002}",
+    content: [{
+        type: "text",
+        text: `
+            <div style="font-family: sans-serif; line-height: 1.5; font-size: 13px;">
+                <b>施設種別:</b> {P20_004}<br>
+                <b>所在地:</b> {P20_003}<br>
+                <b>想定収容人数:</b> {expression/fmtCapacityJA}<br>
+                <hr style="border: none; border-top: 1px solid #ddd; margin: 8px 0 6px 0;">
+                <b>指定災害種別:</b><br>
+                • 🏚️ 地震: {expression/eqJA}<br>
+                • 🌊 津波: {expression/tsuJA}<br>
+                • 🌧️ 洪水・高潮: {expression/fldJA}<br>
+                • 🌋 火山現象: {expression/volJA}<br>
+                • ⛰️ 土砂災害: {expression/lsJA}
+            </div>
+        `
+    }],
+    expressionInfos: [
+        { name: "fmtCapacityJA", expression: "var c = $feature.P20_005; if (IsEmpty(c) || Number(c) <= 0) return '未定・記載なし'; return Text(c, '#,###') + ' 人';" },
+        { name: "eqJA", expression: "IIF($feature.P20_007 == 1 || Text($feature.P20_007) == 'true', '✅ 対応', '❌ 非対応')" },
+        { name: "tsuJA", expression: "IIF($feature.P20_008 == 1 || Text($feature.P20_008) == 'true', '✅ 対応', '❌ 非対応')" },
+        { name: "fldJA", expression: "IIF($feature.P20_009 == 1 || Text($feature.P20_009) == 'true', '✅ 対応', '❌ 非対応')" },
+        { name: "volJA", expression: "IIF($feature.P20_010 == 1 || Text($feature.P20_010) == 'true', '✅ 対応', '❌ 非対応')" },
+        { name: "lsJA", expression: "IIF($feature.P20_011 == 1 || Text($feature.P20_011) == 'true', '✅ 対応', '❌ 非対応')" }
     ]
 };
 
@@ -521,6 +730,26 @@ export const landslidePopupJA = {
     }]
 };
 
+export const skiPopupEN = {
+    title: "⛷️ {name_en}",
+    content: `
+        <b>Subprefecture:</b> {subprefecture}<br>
+        <b>Municipality:</b> {municipality}<br>
+        <b>Key Features:</b> {key_features}<br>
+        <b>Lifts & Facilities:</b> {lifts}
+    `
+};
+
+export const skiPopupJA = {
+    title: "⛷️ {name_ja}",
+    content: `
+        <b>振興局:</b> {subprefecture_ja}<br>
+        <b>自治体:</b> {municipality_ja}<br>
+        <b>特徴:</b> {key_features_ja}<br>
+        <b>リフト・設備:</b> {lifts_ja}
+    `
+};
+
 // ==========================================
 // INIT MAP FUNCTION
 // ==========================================
@@ -596,6 +825,21 @@ export function initMap(viewContainerId, apiKey) {
                     }
                 };
 
+                // Colorblind-safe Ski Area Renderer (Bright Blue Diamond Marker)
+                const skiRenderer = {
+                    type: "simple",
+                    symbol: {
+                        type: "simple-marker",
+                        style: "diamond",     // Valid ArcGIS marker style
+                        color: "#3b82f6",     // Blue fill
+                        size: "12px",
+                        outline: {
+                            color: "#ffffff", // Crisp white outline
+                            width: 1.5
+                        }
+                    }
+                };
+
                 // Instantiate Layers into Module-Scoped Variables
                 avalancheLayer = new GeoJSONLayer({
                     url: "datasets/oshima_hiyama_avalanches.geojson",
@@ -615,20 +859,20 @@ export function initMap(viewContainerId, apiKey) {
                     visible: false
                 });
 
-                const allsubBoundariesLayer = new FeatureLayer({
-                    url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_AdminBoundaries/FeatureServer/0",
-                    title: "Other Hokkaido Boundaries",
-                    popupTemplate: adminPopup,
-                    renderer: subpreBoundaryRenderer,
-                    visible: false
-                });
+                // const allsubBoundariesLayer = new FeatureLayer({
+                //     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_AdminBoundaries/FeatureServer/0",
+                //     title: "Other Hokkaido Boundaries",
+                //     popupTemplate: adminPopup,
+                //     renderer: subpreBoundaryRenderer,
+                //     visible: false
+                // });
 
                 oshHiMuniBoundariesLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_AdminBoundaries/FeatureServer/1",
                     title: "Oshima & Hiyama Municipal Boundaries",
                     popupTemplate: municipalBoundaryPopupEN,
                     renderer: muniBoundaryRenderer,
-                    visible: true
+                    visible: false
                 });
 
                 oshHiBoundariesLayer = new FeatureLayer({
@@ -636,71 +880,74 @@ export function initMap(viewContainerId, apiKey) {
                     title: "Oshima & Hiyama Boundaries",
                     popupTemplate: subprefecturePopupEN,
                     renderer: subpreBoundaryRenderer,
-                    visible: true
+                    visible: false
                 });
 
-                const oshHiTrashLayer = new FeatureLayer({
+                oshHiTrashLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_TrashRegs_Polygons/FeatureServer",
                     title: "Garbage & Recycling Regulations",
                     popupTemplate: trashPopupTemplate,
                     visible: false
                 });
 
-                const municipalOfficesLayer = new FeatureLayer({
+                municipalOfficesLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_Municipal_Offices_etc_and_Public_Meeting_Facilities/FeatureServer",
                     title: "Municipal Offices & Community Centers",
-                    popupTemplate: municipalPopup,
+                    // Use strictly string quotes since P05_002 is esriFieldTypeString
+                    definitionExpression: "P05_002 IN ('1', '2', '4')",
+                    outFields: ["*"],
+                    popupTemplate: municipalOfficePopupEN,
                     visible: false
                 });
 
-                const policeStationsLayer = new FeatureLayer({
+                policeStationsLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_Police/FeatureServer/1",
                     title: "Police Stations & Koban",
-                    popupTemplate: policePopup,
+                    popupTemplate: policePopupEN,
                     visible: false
                 });
 
-                const postOfficesLayer = new FeatureLayer({
+                postOfficesLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_PostOffices/FeatureServer/",
                     title: "Post Offices",
                     popupTemplate: postOfficePopup,
                     visible: false
                 });
 
-                const schoolsLayer = new FeatureLayer({
+                schoolsLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_Schools/FeatureServer/0",
                     title: "Schools & Educational Facilities",
                     popupTemplate: schoolPopup,
                     visible: false
                 });
 
-                const roadsideStationsLayer = new FeatureLayer({
+                roadsideStationsLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_RoadsideStations/FeatureServer/0",
                     title: "Michi-no-Eki (Roadside Stations)",
                     popupTemplate: roadsidePopup,
                     visible: false
                 });
 
-                const busStopsLayer = new FeatureLayer({
+                busStopsLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_RoadsideStations/FeatureServer/1",
                     title: "Bus Stops",
                     visible: false
                 });
 
-                const gasStationsLayer = new FeatureLayer({
+                gasStationsLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_RoadsideStations/FeatureServer/2",
                     title: "Gas Stations",
                     visible: false
                 });
 
-                const evacuationSheltersLayer = new FeatureLayer({
+                evacuationSheltersLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_DisasterPrevention/FeatureServer/1",
                     title: "Disaster Evacuation Shelters",
-                    popupTemplate: disasterPopup,
+                    popupTemplate: shelterPopupEN,
                     visible: false
                 });
 
-                const wildlifeReservesLayer = new FeatureLayer({
+                wildlifeReservesLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_WildlifeReserves/FeatureServer/0",
                     title: "Wildlife Reserves & Natural Areas",
                     visible: false
@@ -721,7 +968,7 @@ export function initMap(viewContainerId, apiKey) {
                     visible: false
                 });
 
-                const railwayLinesLayer = new FeatureLayer({
+                railwayLinesLayer = new FeatureLayer({
                     url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/ForeignHokkaido_OshimaHiyama_Railroad/FeatureServer/1",
                     title: "Railway Lines",
                     visible: false
@@ -735,18 +982,53 @@ export function initMap(viewContainerId, apiKey) {
                     visible: false 
                 });
 
+                skiResortsLayer = new GeoJSONLayer({
+                    url: "datasets/hokkaido_ski_resorts.geojson",
+                    title: "Ski Resorts & Winter Recreation",
+                    popupTemplate: skiPopupEN,
+                    renderer: skiRenderer,
+                    visible: false
+                });
+
+
                 // Categorized schema for control panel
                 const categorizedLayers = [
                     {
                         defaultTitle: "🏛️ Administrative Boundaries",
                         layers: [
                             { layer: oshHiBoundariesLayer, id: "toggle-oshhi-boundaries", key: "layerOshHiBoundaries" },
-                            { layer: oshHiMuniBoundariesLayer, id: "toggle-muni-boundaries", key: "layerMuniBoundaries" },
-                            { layer: allsubBoundariesLayer, id: "toggle-all-boundaries", key: "layerAllBoundaries" }
+                            { layer: oshHiMuniBoundariesLayer, id: "toggle-muni-boundaries", key: "layerMuniBoundaries" }
                         ]
                     },
                     {
-                        defaultTitle: "❄️ Seasonal & Natural Hazards",
+                        defaultTitle: "🏢 Local Logistics",
+                        layers: [
+                            { layer: municipalOfficesLayer, id: "toggle-municipal", key: "layerMunicipal" },
+                            { layer: schoolsLayer, id: "toggle-schools", key: "layerSchools" },
+                            { layer: postOfficesLayer, id: "toggle-post", key: "layerPost" },
+                            { layer: oshHiTrashLayer, id: "toggle-trash", key: "layerTrash" }
+                        ]
+                    },
+                    {
+                        defaultTitle: "🚨 Health & Public Safety",
+                        layers: [
+                            { layer: evacuationSheltersLayer, id: "toggle-shelters", key: "layerShelters" },
+                            { layer: policeStationsLayer, id: "toggle-police", key: "layerPolice" },
+                            { layer: medicalLayer, id: "toggle-medical", key: "layerMedical" },
+                        ]
+                    },
+                    {
+                        defaultTitle: "🚌 Transit",
+                        layers: [
+                            { layer: railwayStationsLayer, id: "toggle-rail-stations", key: "layerRailStations" },
+                            { layer: railwayLinesLayer, id: "toggle-rail-lines", key: "layerRailLines" },
+                            { layer: busStopsLayer, id: "toggle-bus", key: "layerBus" },
+                            { layer: roadsideStationsLayer, id: "toggle-roadside", key: "layerRoadside" },
+                            { layer: gasStationsLayer, id: "toggle-gas", key: "layerGas" }
+                        ]
+                    },
+                    {
+                        defaultTitle: "⚠️ Natural Hazard Zones",
                         layers: [
                             { layer: snowHazardLayer, id: "toggle-snow", key: "layerSnow" },
                             { layer: avalancheLayer, id: "toggle-avalanche", key: "layerAvalanche" },
@@ -754,28 +1036,21 @@ export function initMap(viewContainerId, apiKey) {
                         ]
                     },
                     {
-                        defaultTitle: "🏥 Daily Life & Logistics",
+                        defaultTitle: "🏔️ Nature & Recreation",
                         layers: [
-                            { layer: medicalLayer, id: "toggle-medical", key: "layerMedical" },
-                            { layer: municipalOfficesLayer, id: "toggle-municipal", key: "layerMunicipal" },
-                            { layer: policeStationsLayer, id: "toggle-police", key: "layerPolice" },
-                            { layer: postOfficesLayer, id: "toggle-post", key: "layerPost" },
-                            { layer: schoolsLayer, id: "toggle-schools", key: "layerSchools" },
-                            { layer: roadsideStationsLayer, id: "toggle-roadside", key: "layerRoadside" },
-                            { layer: busStopsLayer, id: "toggle-bus", key: "layerBus" },
-                            { layer: gasStationsLayer, id: "toggle-gas", key: "layerGas" },
-                            { layer: oshHiTrashLayer, id: "toggle-trash", key: "layerTrash" }
+                            { layer: skiResortsLayer, id: "toggle-ski", key: "layerSki" },
+                            { layer: wildlifeReservesLayer, id: "toggle-wildlife", key: "layerWildlife" },
+                            // { layer: communityEventsLayer, id: "toggle-community-events", key: "layerCommunityEvents" },
+                            // { layer: localInterestsLayer, id: "toggle-local-interests", key: "layerLocalInterests" }
                         ]
                     },
-                    {
-                        defaultTitle: "🚆 Community & Transit Network",
-                        layers: [
-                            { layer: evacuationSheltersLayer, id: "toggle-shelters", key: "layerShelters" },
-                            { layer: wildlifeReservesLayer, id: "toggle-wildlife", key: "layerWildlife" },
-                            { layer: railwayStationsLayer, id: "toggle-rail-stations", key: "layerRailStations" },
-                            { layer: railwayLinesLayer, id: "toggle-rail-lines", key: "layerRailLines" }
-                        ]
-                    }
+                    // {
+                    //     defaultTitle: "👥 Community Network",
+                    //     layers: [
+                    //         // { layer: communityEventsLayer, id: "toggle-community-events", key: "layerCommunityEvents" },
+                    //         // { layer: localInterestsLayer, id: "toggle-local-interests", key: "layerLocalInterests" }
+                    //     ]
+                    // }
                 ];
 
                 const layerRegistry = categorizedLayers.flatMap(cat => cat.layers);
@@ -865,8 +1140,8 @@ export function initMap(viewContainerId, apiKey) {
                 let isPanelOpen = false;
                 controlPanelDiv.style.display = "none";
                 controlPanelDiv.style.position = "absolute";
-                controlPanelDiv.style.top = "40px";
-                controlPanelDiv.style.left = "35px";
+                controlPanelDiv.style.top = "48px";
+                controlPanelDiv.style.left = "36px";
                 controlPanelDiv.style.zIndex = "100";
                 controlPanelDiv.style.boxShadow = "var(--shadow-md)";
                 controlPanelDiv.style.borderRadius = "8px";
@@ -978,9 +1253,14 @@ export function initMap(viewContainerId, apiKey) {
                         const isWinter = (currentSeason === "winter");
                         snowHazardLayer.visible = isWinter;
                         avalancheLayer.visible = isWinter;
+                        skiResortsLayer.visible = isWinter;
 
                         const avalancheCb = controlPanelDiv.querySelector("#toggle-avalanche");
                         if (avalancheCb) avalancheCb.checked = isWinter;
+
+                        // ⛷️ Automatically update the ski layer checkbox in the control panel
+                        const skiCb = controlPanelDiv.querySelector("#toggle-ski");
+                        if (skiCb) skiCb.checked = isWinter;
 
                         if (oshHiMuniBoundariesLayer) oshHiMuniBoundariesLayer.visible = !isWinter;
                         if (oshHiBoundariesLayer) oshHiBoundariesLayer.visible = !isWinter;
@@ -1085,6 +1365,17 @@ export function updateLayerPopups(lang) {
     if (medicalLayer) medicalLayer.popupTemplate = (lang === "EN") ? medicalPopupEN : medicalPopupJA;
     if (avalancheLayer) avalancheLayer.popupTemplate = (lang === "EN") ? avalanchePopupEN : avalanchePopupJA;
     if (landslideLayer) landslideLayer.popupTemplate = (lang === "EN") ? landslidePopupEN : landslidePopupJA;
+    // if (evacuationSheltersLayer) evacuationSheltersLayer.popupTemplate = (lang === "EN") ? disasterPopup : disasterPopupJA;
+    if (municipalOfficesLayer) municipalOfficesLayer.popupTemplate = (lang === "EN") ? municipalOfficePopupEN : municipalOfficePopupJA;
+    if (policeStationsLayer) policeStationsLayer.popupTemplate = (lang === "EN") ? policePopupEN : policePopupJA;
+    // if (postOfficesLayer) postOfficesLayer.popupTemplate = (lang === "EN") ? postOfficePopup : postOfficePopupJA;
+    // if (schoolsLayer) schoolsLayer.popupTemplate = (lang === "EN") ? schoolPopup : schoolPopupJA;
+    // if (roadsideStationsLayer) roadsideStationsLayer.popupTemplate = (lang === "EN") ? roadsidePopup : roadsidePopupJA;
+    // if (wildlifeReservesLayer) wildlifeReservesLayer.popupTemplate = (lang === "EN") ? wildlifePopup : wildlifePopupJA;
+    // if (gasStationsLayer) gasStationsLayer.popupTemplate = (lang === "EN") ? gasPopup : gasPopupJA;
+    // if (busStopsLayer) busStopsLayer.popupTemplate = (lang === "EN") ? busPopup : busPopupJA;
+    // if (oshHiTrashLayer) oshHiTrashLayer.popupTemplate = (lang === "EN") ? trashPopupTemplate : trashPopupTemplateJA;
+    if (skiResortsLayer) skiResortsLayer.popupTemplate = (lang === "EN") ? skiPopupEN : skiPopupJA;
 
     // Update Dropdown Filter Labels
     updateDropdownLanguage(lang);

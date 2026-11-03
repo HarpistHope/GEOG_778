@@ -31,6 +31,7 @@
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
     --shadow-lg: 0 12px 28px -6px rgba(15, 23, 42, 0.12), 0 8px 12px -4px rgba(15, 23, 42, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -83,9 +84,10 @@ html, body {
    ========================================================================== */
 .app-header {
     position: absolute;
-    top: 16px;
+    top: 5px;
     left: 50%;
-    height: 56px;
+    width: 99%;
+    height: 65px;
     transform: translateX(-50%);
     z-index: 99;
     display: flex;
@@ -152,38 +154,59 @@ html, body {
     background: var(--color-primary-hover);
 }
 
-/* Core Esri Widgets Interfacing */
-.esri-widget--button, 
-.esri-widget {
-    background-color: var(--color-surface-base) !important;
-    color: var(--color-primary) !important;
-    border-radius: var(--radius-sm) !important;
-    box-shadow: var(--shadow-md) !important;
-    border: 1px solid var(--color-border) !important; 
-    transition: all var(--transition-fast);
+/* ==========================================================================
+   POLISHED MAP CONTROLS & PANEL PROPORTIONS
+   ========================================================================== */
+
+/* Nudge the entire top-left Esri container down so it breathes beneath the header */
+.esri-ui-top-left {
+    top: 65px !important;
+    /* left: 1px !important; */
 }
 
-.esri-widget--button:hover {
-    background-color: #f8fafc !important;
-}
-
-/* Standalone Custom Map Controls Button */
-#controlPanelCustomBtn {
+/* Match the Map Controls button color and crisp white look to header buttons */
+button#controlPanelCustomBtn.esri-widget.esri-widget--button {
     width: auto !important;
-    min-width: 130px !important;
-    height: 36px !important;
+    min-width: 220px !important;
+    height: 40px !important;
     padding: 0 16px !important;
-    font-family: var(--font-family-base) !important;
+    background: #ffffff !important;
+    color: var(--color-text-body, #1e293b) !important;
+    border: 1px solid var(--color-border, #cbd5e1) !important;
+    border-radius: var(--radius-sm, 8px) !important;
+    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1)) !important;
+    font-family: var(--font-family-base, inherit) !important;
     font-weight: 600 !important;
-    font-size: 0.8rem !important;
+    font-size: 0.75rem !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    gap: 6px !important;
     cursor: pointer !important;
     white-space: nowrap !important;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
 }
+
+button#controlPanelCustomBtn.esri-widget.esri-widget--button:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: var(--color-text-title, #0f172a) !important;
+}
+
+/* Refine the Expanded Control Panel proportions to eliminate the "blocky" feel */
+#controlPanelDiv {
+    padding: 18px !important;
+    border-radius: var(--radius-lg, 12px) !important;
+    box-shadow: var(--shadow-xl) !important;
+    background: var(--color-surface-glass, rgba(255, 255, 255, 0.95)) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid var(--color-border, #cbd5e1) !important;
+    max-height: 80vh !important;
+    overflow-y: auto !important;
+}
+
 
 
 /* ==========================================================================
@@ -373,6 +396,21 @@ html, body {
     transition: all 0.2s ease;
 }
 
+/* High-Specificity Spotlight Highlight for Tour Steps */
+.tour-highlight,
+button#controlPanelCustomBtn.tour-highlight,
+button#controlPanelCustomBtn.esri-widget.esri-widget--button.tour-highlight,
+.app-header .header-btn.tour-highlight {
+    position: relative !important;
+    z-index: 10001 !important;
+    box-shadow: 0 0 0 4px #3b82f6, 0 0 25px rgba(59, 130, 246, 0.9) !important;
+    background-color: #ffffff !important;
+    color: #1b365d !important;
+    border-radius: 6px !important;
+    transform: scale(1.05) !important;
+    transition: all 0.2s ease !important;
+}
+
 .tour-dimmed {
     opacity: 0.35;
     transition: opacity 0.2s ease;
@@ -438,3 +476,9 @@ html, body {
     background: #122543;
 }
 
+/* Precise Header Highlight for Tour */
+.tour-header-highlight {
+    position: relative !important;
+    z-index: 10000 !important;
+    display: inline-block !important; /* Prevents it from stretching full-width */
+}
