@@ -498,7 +498,7 @@
 // });
 
 // main.js - Import setup functions, configuration, and localization
-import { initMap, setSeason, currentLang, setLanguage, currentSeason, updateLayerPopups } from './map.js';
+import { initMap, setSeason, currentLang, setLanguage, currentSeason, updateLayerPopups, refreshMapViewUI } from './map.js';
 import { setupLocationServices } from './location.js';
 import { AGOL_APIkey } from './config.js';
 import { t } from './localization.js';
@@ -528,6 +528,11 @@ export function refreshUI() {
     const resetBtn = document.getElementById('btn-reset-view');
     if (resetBtn) {
         resetBtn.textContent = t('resetBtn', lang);
+    }
+
+    const tourBtn = document.getElementById('btn-tour');
+    if (tourBtn) {
+        tourBtn.textContent = (lang === "EN") ? "❓ App Tour" : "❓ アプリツアー";
     }
 
     // 3. Control Panel Text Elements
@@ -848,7 +853,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const nextLang = (currentLang === "EN") ? "JA" : "EN";
             setLanguage(nextLang);         
             updateLayerPopups(nextLang);   
-            refreshUI();                   
+            refreshUI();    
+            //refreshMapViewUI();
         });
     }
 

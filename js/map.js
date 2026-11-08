@@ -1,10 +1,21 @@
 // map.js - ForeignHokkaido Core Map Application Engine
 import { t, translations } from './localization.js';
+import esriConfig from "https://js.arcgis.com/4.26/@arcgis/core/config.js";
 
 let mapInstance = null;
 let viewInstance = null;
 export let currentSeason = "summer"; // 'summer' | 'winter'
 export let currentLang = "EN"; // 'EN' | 'JA'
+
+// Declare them globally so refreshControlPanelLanguage can access them later
+let categorizedLayers = [];
+let layerRegistry = [];
+let controlPanelDiv = null;
+
+// Declare constructor variables at the top of map.js:
+let ZoomConstructor = null;
+let ExpandConstructor = null;
+let LegendConstructor = null;
 
 // Module-scoped layer references for global popup & language updates
 // export let snowHazardLayer, oshHiBoundariesLayer, oshHiMuniBoundariesLayer, railwayStationsLayer, medicalLayer, avalancheLayer, landslideLayer, skiResortsLayer;
@@ -15,13 +26,21 @@ export let snowHazardLayer, oshHiBoundariesLayer, oshHiMuniBoundariesLayer,
            skiResortsLayer, evacuationSheltersLayer, municipalOfficesLayer, 
            policeStationsLayer, postOfficesLayer, schoolsLayer, 
            roadsideStationsLayer, wildlifeReservesLayer, gasStationsLayer, 
-           busStopsLayer, oshHiTrashLayer, railwayLinesLayer;
+           busStopsLayer, oshHiTrashLayer, railwayLinesLayer, communityEventsLayer, localInterestsLayer;
 
            // Function to set language state
-export function setLanguage(lang) {
-    currentLang = lang;
-    return currentLang;
-}
+            export function setLanguage(lang) {
+                currentLang = lang;
+                esriConfig.locale = (lang === "JA") ? "ja" : "en";
+
+                // Re-apply standard string basemap identifiers to keep the layer stable
+                if (mapInstance) {
+                    const isWinter = (currentSeason === "winter");
+                    mapInstance.basemap = isWinter ? "arcgis-light-gray" : "arcgis-topographic";
+                }
+
+                return currentLang;
+            }
 
 // ==========================================
 // POPUP TEMPLATES (Module-Scoped)
@@ -755,7 +774,7 @@ export const skiPopupJA = {
 // ==========================================
 
 export function initMap(viewContainerId, apiKey) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {       
         require([
             "esri/config", 
             "esri/Map", 
@@ -777,6 +796,10 @@ export function initMap(viewContainerId, apiKey) {
             Expand, 
             Zoom
         ) => {
+            // Store constructors globally in module scope so other functions can use them
+            ZoomConstructor = Zoom;
+            ExpandConstructor = Expand;
+            LegendConstructor = Legend;
             
             try {
                 if (apiKey) esriConfig.apiKey = apiKey;
@@ -990,10 +1013,22 @@ export function initMap(viewContainerId, apiKey) {
                     visible: false
                 });
 
+                communityEventsLayer = new FeatureLayer({
+                    url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/survey123_ce59397e2ce24ba9825b39f151844c21_results/FeatureServer",
+                    title: "Community Events & Festivals",
+                    visible: false
+                });
+
+                localInterestsLayer = new FeatureLayer({
+                    url: "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services/survey123_4d7f38da81374bb8b57cd737de7fe630_results/FeatureServer",
+                    title: "Local Points of Interest",
+                    visible: false
+                });
 
                 // Categorized schema for control panel
-                const categorizedLayers = [
+                categorizedLayers = [
                     {
+                        titleKey: "catAdmin",
                         defaultTitle: "🏛️ Administrative Boundaries",
                         layers: [
                             { layer: oshHiBoundariesLayer, id: "toggle-oshhi-boundaries", key: "layerOshHiBoundaries" },
@@ -1001,6 +1036,7 @@ export function initMap(viewContainerId, apiKey) {
                         ]
                     },
                     {
+                        titleKey: "catLogistics",
                         defaultTitle: "🏢 Local Logistics",
                         layers: [
                             { layer: municipalOfficesLayer, id: "toggle-municipal", key: "layerMunicipal" },
@@ -1010,6 +1046,7 @@ export function initMap(viewContainerId, apiKey) {
                         ]
                     },
                     {
+                        titleKey: "catSafety",
                         defaultTitle: "🚨 Health & Public Safety",
                         layers: [
                             { layer: evacuationSheltersLayer, id: "toggle-shelters", key: "layerShelters" },
@@ -1018,6 +1055,7 @@ export function initMap(viewContainerId, apiKey) {
                         ]
                     },
                     {
+                        titleKey: "catTransit",
                         defaultTitle: "🚌 Transit",
                         layers: [
                             { layer: railwayStationsLayer, id: "toggle-rail-stations", key: "layerRailStations" },
@@ -1028,6 +1066,7 @@ export function initMap(viewContainerId, apiKey) {
                         ]
                     },
                     {
+                        titleKey: "catHazards",
                         defaultTitle: "⚠️ Natural Hazard Zones",
                         layers: [
                             { layer: snowHazardLayer, id: "toggle-snow", key: "layerSnow" },
@@ -1036,21 +1075,21 @@ export function initMap(viewContainerId, apiKey) {
                         ]
                     },
                     {
+                        titleKey: "catNature",
                         defaultTitle: "🏔️ Nature & Recreation",
                         layers: [
                             { layer: skiResortsLayer, id: "toggle-ski", key: "layerSki" },
                             { layer: wildlifeReservesLayer, id: "toggle-wildlife", key: "layerWildlife" },
-                            // { layer: communityEventsLayer, id: "toggle-community-events", key: "layerCommunityEvents" },
-                            // { layer: localInterestsLayer, id: "toggle-local-interests", key: "layerLocalInterests" }
                         ]
                     },
-                    // {
-                    //     defaultTitle: "👥 Community Network",
-                    //     layers: [
-                    //         // { layer: communityEventsLayer, id: "toggle-community-events", key: "layerCommunityEvents" },
-                    //         // { layer: localInterestsLayer, id: "toggle-local-interests", key: "layerLocalInterests" }
-                    //     ]
-                    // }
+                    {
+                        titleKey: "catCommunity",
+                        defaultTitle: "👥 Community Network",
+                        layers: [
+                            { layer: communityEventsLayer, id: "toggle-community-events", key: "layerCommunityEvents" },
+                            { layer: localInterestsLayer, id: "toggle-local-interests", key: "layerLocalInterests" }
+                        ]
+                    }
                 ];
 
                 const layerRegistry = categorizedLayers.flatMap(cat => cat.layers);
@@ -1073,13 +1112,13 @@ export function initMap(viewContainerId, apiKey) {
                 viewInstance = view;
 
                 // Control panel UI creation
-                const controlPanelDiv = document.createElement("div");
+                controlPanelDiv = document.createElement("div");
                 controlPanelDiv.className = "esri-widget";
                 controlPanelDiv.style.cssText = "padding: 12px 14px; background: white; width: 290px; font-family: sans-serif;";
 
                 controlPanelDiv.innerHTML = `
                     <h3 id="lbl-panel-title" style="margin: 0 0 10px 0; font-size: 13px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 4px;">
-                        Interactive Control Panel
+                        ${t('panelTitle', currentLang)}
                     </h3>
                     
                     <div style="margin-bottom: 12px;">
@@ -1096,9 +1135,9 @@ export function initMap(viewContainerId, apiKey) {
                     </div>
                     
                     <div id="layer-toggles-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 4px; margin-bottom: 12px;">
-                        ${categorizedLayers.map(category => `
+                        ${categorizedLayers.map((category, catIndex) => `
                             <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 2px;">
-                                <div style="font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">
+                                <div id="cat-title-${catIndex}" style="font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">
                                     ${category.defaultTitle}
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -1118,14 +1157,19 @@ export function initMap(viewContainerId, apiKey) {
                             ${t('crowdsourceHeader', currentLang)}
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px;">
-                            <a href="https://arcg.is/0y4meL0" target="_blank" style="text-decoration: none;">
-                                <button style="width: 100%; background: #007ac2; color: white; border: none; padding: 6px; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: bold; text-align: left;">
+                            <a href="https://arcg.is/1GfHCr5" target="_blank" style="text-decoration: none;">
+                                <button id="btn-survey" style="width: 100%; background: #007ac2; color: white; border: none; padding: 6px; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: bold; text-align: left;">
                                     ${t('surveyBtn', currentLang)}
                                 </button>
                             </a>
-                            <a href="https://arcg.is/0SWLXv" target="_blank" style="text-decoration: none;">
-                                <button style="width: 100%; background: #4682b4; color: white; border: none; padding: 6px; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: bold; text-align: left;">
+                            <a href="https://arcg.is/1bj49i2" target="_blank" style="text-decoration: none;">
+                                <button id="btn-report" style="width: 100%; background: #4682b4; color: white; border: none; padding: 6px; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: bold; text-align: left;">
                                     ${t('reportBtn', currentLang)}
+                                </button>
+                            </a>
+                            <a href="https://arcg.is/uaqLC0" target="_blank" style="text-decoration: none;">
+                                <button id="btn-report-app" style="width: 100%; background: #FF0F0F; color: white; border: none; padding: 6px; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: bold; text-align: left;">
+                                    ${t('reportAppBtn', currentLang)}
                                 </button>
                             </a>
                         </div>
@@ -1135,7 +1179,7 @@ export function initMap(viewContainerId, apiKey) {
                 const customToggleBtn = document.createElement("button");
                 customToggleBtn.id = "controlPanelCustomBtn";
                 customToggleBtn.className = "esri-widget esri-widget--button";
-                customToggleBtn.innerHTML = "▶ Map Controls";
+                customToggleBtn.innerHTML = t('mapControlsBtn', currentLang);
 
                 let isPanelOpen = false;
                 controlPanelDiv.style.display = "none";
@@ -1158,12 +1202,10 @@ export function initMap(viewContainerId, apiKey) {
                     customToggleBtn.style.color = isPanelOpen ? "#ffffff" : "#1b365d";
                 });
                 
-                // Updated document click listener in map.js
                 document.addEventListener("click", (e) => {
                     const appHeader = document.querySelector("#appHeader");
                     const viewDiv = document.querySelector("#viewDiv");
                     
-                    // Do not close if clicking inside the panel, header, or the map canvas itself
                     if (isPanelOpen && 
                         !containerDiv.contains(e.target) && 
                         (!appHeader || !appHeader.contains(e.target)) &&
@@ -1181,7 +1223,6 @@ export function initMap(viewContainerId, apiKey) {
                 const muniSelect = controlPanelDiv.querySelector("#muni-filter-select");
                 updateDropdownLanguage(currentLang, muniSelect);
 
-                // Automatically set to ALL on initial load
                 muniSelect.value = "ALL";
                 muniSelect.dispatchEvent(new Event("change"));
 
@@ -1258,7 +1299,6 @@ export function initMap(viewContainerId, apiKey) {
                         const avalancheCb = controlPanelDiv.querySelector("#toggle-avalanche");
                         if (avalancheCb) avalancheCb.checked = isWinter;
 
-                        // ⛷️ Automatically update the ski layer checkbox in the control panel
                         const skiCb = controlPanelDiv.querySelector("#toggle-ski");
                         if (skiCb) skiCb.checked = isWinter;
 
@@ -1293,7 +1333,9 @@ export function initMap(viewContainerId, apiKey) {
 
                 view.when(() => { resolve({ map, view }); }, (err) => { reject(err); });
 
-            } catch (err) { reject(err); }
+            } catch (err) { 
+                reject(err); 
+            }
         });
     });
 }
@@ -1365,18 +1407,136 @@ export function updateLayerPopups(lang) {
     if (medicalLayer) medicalLayer.popupTemplate = (lang === "EN") ? medicalPopupEN : medicalPopupJA;
     if (avalancheLayer) avalancheLayer.popupTemplate = (lang === "EN") ? avalanchePopupEN : avalanchePopupJA;
     if (landslideLayer) landslideLayer.popupTemplate = (lang === "EN") ? landslidePopupEN : landslidePopupJA;
-    // if (evacuationSheltersLayer) evacuationSheltersLayer.popupTemplate = (lang === "EN") ? disasterPopup : disasterPopupJA;
     if (municipalOfficesLayer) municipalOfficesLayer.popupTemplate = (lang === "EN") ? municipalOfficePopupEN : municipalOfficePopupJA;
     if (policeStationsLayer) policeStationsLayer.popupTemplate = (lang === "EN") ? policePopupEN : policePopupJA;
-    // if (postOfficesLayer) postOfficesLayer.popupTemplate = (lang === "EN") ? postOfficePopup : postOfficePopupJA;
-    // if (schoolsLayer) schoolsLayer.popupTemplate = (lang === "EN") ? schoolPopup : schoolPopupJA;
-    // if (roadsideStationsLayer) roadsideStationsLayer.popupTemplate = (lang === "EN") ? roadsidePopup : roadsidePopupJA;
-    // if (wildlifeReservesLayer) wildlifeReservesLayer.popupTemplate = (lang === "EN") ? wildlifePopup : wildlifePopupJA;
-    // if (gasStationsLayer) gasStationsLayer.popupTemplate = (lang === "EN") ? gasPopup : gasPopupJA;
-    // if (busStopsLayer) busStopsLayer.popupTemplate = (lang === "EN") ? busPopup : busPopupJA;
-    // if (oshHiTrashLayer) oshHiTrashLayer.popupTemplate = (lang === "EN") ? trashPopupTemplate : trashPopupTemplateJA;
     if (skiResortsLayer) skiResortsLayer.popupTemplate = (lang === "EN") ? skiPopupEN : skiPopupJA;
 
     // Update Dropdown Filter Labels
     updateDropdownLanguage(lang);
+
+    // Refresh currently open popup view if visible
+    if (viewInstance && viewInstance.popup && viewInstance.popup.visible) {
+        const selectedFeature = viewInstance.popup.selectedFeature;
+        if (selectedFeature) {
+            viewInstance.popup.open({
+                features: [selectedFeature],
+                location: viewInstance.popup.location
+            });
+        }
+    }
+
+    // Refresh the control panel text, headers, layers, and buttons via window hook
+    if (window.refreshControlPanelLanguage) {
+        window.refreshControlPanelLanguage(lang);
+    }
+}
+
+// Window refresh hook for the control panel UI
+window.refreshControlPanelLanguage = function(lang) {
+    const customToggleBtn = document.querySelector("#controlPanelCustomBtn");
+    if (customToggleBtn) {
+        // Keep the play arrow if closed, or update text
+        customToggleBtn.innerHTML = t('mapControlsBtn', lang);
+    }
+
+    const cpDiv = document.querySelector("#controlPanelCustomBtn")?.parentElement?.querySelector("div:not(button)");
+    if (!cpDiv) return;
+
+    const muniSelect = cpDiv.querySelector("#muni-filter-select");
+    const currentSelection = muniSelect ? muniSelect.value : "ALL";
+
+    cpDiv.innerHTML = `
+        <h3 id="lbl-panel-title" style="margin: 0 0 10px 0; font-size: 13px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 4px;">
+            ${t('panelTitle', lang)}
+        </h3>
+        
+        <div style="margin-bottom: 12px;">
+            <label id="lbl-muni-filter" for="muni-filter-select" style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px; color: #333;">
+                ${t('muniFilterLabel', lang)}
+            </label>
+            <select id="muni-filter-select" style="padding: 5px; font-size: 12px; border: 1px solid #ccc; border-radius: 3px; width: 100%;">
+                <!-- Dynamically populated -->
+            </select>
+        </div>
+
+        <div id="lbl-layers-header" style="font-size: 11px; font-weight: bold; margin-bottom: 6px; color: #333;">
+            ${t('layersLabel', lang)}
+        </div>
+        
+        <div id="layer-toggles-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 4px; margin-bottom: 12px;">
+            ${categorizedLayers.map((category, catIndex) => `
+                <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; margin-bottom: 2px;">
+                    <div id="cat-title-${catIndex}" style="font-size: 10px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">
+                    ${t(category.titleKey, currentLang)}
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        ${category.layers.map(item => `
+                            <label style="font-size: 11.5px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="${item.id}" ${item.layer.visible ? "checked" : ""}>
+                                <span id="${item.id}-lbl">${t(item.key, lang)}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+
+        <div style="border-top: 1px solid #ddd; padding-top: 8px;">
+            <div id="lbl-crowdsource-header" style="font-size: 11px; font-weight: bold; margin-bottom: 6px; color: #333;">
+                ${t('crowdsourceHeader', lang)}
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <a href="https://arcg.is/1GfHCr5" target="_blank" style="text-decoration: none;">
+                    <button id="btn-survey" style="width: 100%; background: #007ac2; color: white; border: none; padding: 6px; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: bold; text-align: left;">
+                        ${t('surveyBtn', lang)}
+                    </button>
+                </a>
+                <a href="https://arcg.is/1bj49i2" target="_blank" style="text-decoration: none;">
+                    <button id="btn-report" style="width: 100%; background: #4682b4; color: white; border: none; padding: 6px; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: bold; text-align: left;">
+                        ${t('reportBtn', lang)}
+                    </button>
+                </a>
+                <a href="https://arcg.is/uaqLC0" target="_blank" style="text-decoration: none;">
+                    <button id="btn-report-app" style="width: 100%; background: #FF0F0F; color: white; border: none; padding: 6px; font-size: 11px; border-radius: 3px; cursor: pointer; font-weight: bold; text-align: left;">
+                        ${t('reportAppBtn', lang)}
+                    </button>
+                </a>
+            </div>
+        </div>
+    `;
+
+    const newMuniSelect = cpDiv.querySelector("#muni-filter-select");
+    updateDropdownLanguage(lang, newMuniSelect);
+    newMuniSelect.value = currentSelection;
+
+    layerRegistry.forEach(item => {
+        const cb = cpDiv.querySelector(`#${item.id}`);
+        if (cb) {
+            cb.addEventListener("change", (e) => { item.layer.visible = e.target.checked; });
+        }
+    });
+};
+
+export function refreshMapViewUI() {
+    if (!viewInstance || !ZoomConstructor) return;
+    
+    // Clear top-left Esri widgets
+    viewInstance.ui.empty("top-left");
+    
+    // Re-add your control panel container using the stored global reference
+    const customToggleBtn = document.getElementById("controlPanelCustomBtn");
+    const containerDiv = customToggleBtn ? customToggleBtn.parentElement : null;
+    
+    if (containerDiv) {
+        viewInstance.ui.add(containerDiv, "top-left");
+    }
+    
+    // Re-instantiate native widgets so they read the updated esriConfig.locale ("ja" / "en")
+    viewInstance.ui.add(new ZoomConstructor({ view: viewInstance }), "top-left");
+    viewInstance.ui.add(new ExpandConstructor({ 
+        view: viewInstance, 
+        content: new LegendConstructor({ view: viewInstance }), 
+        expandIcon: "legend", 
+        group: "top-left" 
+    }), "top-left");
 }

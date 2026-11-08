@@ -7,12 +7,14 @@ export const translations = {
         seasonBtnWinter: "❄️ Winter Mode",
         seasonBtnSummer: "☀️ Summer Mode",
         resetBtn: "🎯 Reset Extent",
+        panelTitle: "Interactive Control Panel",
         muniFilterLabel: "FILTER BY MUNICIPALITY:",
         muniAll: "Show All Municipalities",
         layersLabel: "TOGGLE LAYERS:",
         crowdsourceHeader: "COMMUNITY CONTRIBUTIONS:",
         surveyBtn: "Add Community Event",
         reportBtn: "Add Local Interests",
+        reportAppBtn: "Report Issue with App",
         layerMunicipal: "Municipal Offices",
         layerPolice: "Police Stations/Koban",
         layerPost: "Post Offices",
@@ -31,7 +33,17 @@ export const translations = {
         layerTrash: "Garbage & Recycling Regulations",
         layerAvalanche: "Avalanche Hazard Zones",
         layerLandslide: "Landslide Hazard Zones",
-        layerSki: "Ski Resorts & Winter Recreation"
+        layerSki: "Ski Resorts & Winter Recreation",
+        layerCommunityEvents: "Community Events (Crowdsourced)",
+        layerLocalInterests: "Local Interests (Crowdsourced)",
+        catAdmin: "🏛️ Administrative Boundaries",
+        catLogistics: "🏢 Local Logistics",
+        catSafety: "🚨 Health & Public Safety",
+        catTransit: "🚌 Transit",
+        catHazards: "⚠️ Natural Hazard Zones",
+        catNature: "🏔️ Nature & Recreation",
+        catCommunity: "👥 Community Network",
+        mapControlsBtn: "Map Controls"
     },
     JA: {
         appTitle: "北海道の異国情緒",
@@ -39,12 +51,14 @@ export const translations = {
         seasonBtnWinter: "❄️ 冬季モード",
         seasonBtnSummer: "☀️ 夏季モード",
         resetBtn: "🎯 全域表示",
+        panelTitle: "インタラクティブ・コントロールパネル",
         muniFilterLabel: "市町村エリア絞り込み:",
         muniAll: "全自治体を表示",
         layersLabel: "表示レイヤー:",
         crowdsourceHeader: "情報提供・コミュニティ投稿:",
         surveyBtn: "📍 地域のイベントを投稿・報告",
         reportBtn: "📍 地域のおすすめスポットを投稿・報告",
+        reportAppBtn: "アプリの不具合を報告",
         layerMunicipal: "役所・役場・公民館",
         layerPolice: "警察署・交番・駐在所",
         layerPost: "郵便局",
@@ -63,9 +77,20 @@ export const translations = {
         layerTrash: "ごみ・リサイクル分別ルール",
         layerAvalanche: "雪崩危険区域",
         layerLandslide: "土砂災害危険区域",
-        layerSki: "スキー場・冬季レクリエーション"
+        layerSki: "スキー場・冬季レクリエーション",
+        layerCommunityEvents: "地域のイベント (コミュニティ投稿)", 
+        layerLocalInterests: "地域のおすすめスポット (コミュニティ投稿)",
+        catAdmin: "🏛️ 行政区画",
+        catLogistics: "🏢 生活インフラ",
+        catSafety: "🚨 防災・安全",
+        catTransit: "🚌 交通・公共輸送",
+        catHazards: "⚠️ 自然災害危険区域",
+        catNature: "🏔️ 自然・レクリエーション",
+        catCommunity: "👥 コミュニティ・ネットワーク",
+        mapControlsBtn: "マップ操作"
     }
 };
+
 
 // ==========================================
 // SPATIAL DATA TRANSLATION DICTIONARIES
