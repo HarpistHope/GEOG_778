@@ -1,87 +1,68 @@
-// // location.js: Exports function to add locate widget to the map
+// location.js — adds the Locate widget and reports failures with a localized toast
+import { t } from "./localization.js";
+import { onChange } from "./map.js";
 
-// export function setupLocationServices(view) {
-//     require(["esri/widgets/Locate"], (Locate) => {
-        
-//         // Create locate widget with high accuracy enabled and a 10-second timeout
-//         const locateBtn = new Locate({
-//             view: view,
-//             geolocationOptions: {
-//                 enableHighAccuracy: true,
-//                 timeout: 10000,
-//                 maximumAge: 0
-//             }
-//         });
+function showToast(message) {
+    let toast = document.getElementById("fh-toast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "fh-toast";
+        toast.className = "fh-toast";
+        toast.setAttribute("role", "status");
+        toast.setAttribute("aria-live", "polite");
+        document.body.append(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => toast.classList.remove("show"), 6000);
+}
 
-//         // Error handler for location failures
-//         locateBtn.on("locate-error", (event) => {
-//             console.error("Locate Widget Error:", event.error);
-            
-//             const errorMsg = event.error?.message || "";
-//             if (errorMsg.includes("denied")) {
-//                 alert("Location access was denied. Please enable location permissions in your browser settings to find your position.");
-//             } else if (errorMsg.includes("timeout")) {
-//                 alert("Location request timed out. Please try again or check your GPS connection.");
-//             } else {
-//                 alert("Unable to acquire your current location. Please check your device settings.");
-//             }
-//         });
+// GeolocationPositionError codes: 1 = denied, 2 = unavailable, 3 = timeout
+function errorKey(error) {
+    const code = error?.code;
+    if (code === 1) return "locDenied";
+    if (code === 3) return "locTimeout";
+    if (code === 2) return "locUnavailable";
+    const msg = String(error?.message || "").toLowerCase();
+    if (msg.includes("denied") || msg.includes("permission")) return "locDenied";
+    if (msg.includes("timeout") || msg.includes("timed out")) return "locTimeout";
+    return "locUnavailable";
+}
 
-//         // Add to top-left corner below zoom and control panel controls
-//         view.ui.add(locateBtn, {
-//             position: "top-left",
-//             index: 2
-//         });
-//     });
-// }
+export function setupLocationServices(view, getLang) {
+    const lang = () => (typeof getLang === "function" ? getLang() : "EN");
+    const labels = { EN: "Find my location", JA: "現在地を表示" };
 
-// location.js: Exports function to add locate widget to the map with bilingual support
+    return new Promise((resolve, reject) => {
+        if (typeof window.require !== "function") return reject(new Error("ArcGIS SDK is not loaded."));
+        window.require(["esri/widgets/Locate"], (Locate) => {
+            try {
+                // Not high-accuracy: laptops without GPS would otherwise time out constantly.
+                const locate = new Locate({
+                    view,
+                    geolocationOptions: { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+                });
 
-export function setupLocationServices(view, getCurrentLang) {
-    require(["esri/widgets/Locate"], (Locate) => {
-        
-        // Create locate widget with high accuracy enabled and a 10-second timeout
-        const locateBtn = new Locate({
-            view: view,
-            geolocationOptions: {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
+                const applyLabel = () => {
+                    locate.label = labels[lang()];
+                    const btn = locate.container?.querySelector?.("[role='button'], button");
+                    if (btn) { btn.title = labels[lang()]; btn.setAttribute("aria-label", labels[lang()]); }
+                };
+
+                locate.on("locate-error", (event) => {
+                    console.warn("Locate error:", event.error);
+                    showToast(t(errorKey(event.error), lang()));
+                });
+
+                // index 2 sits between Zoom (1) and Legend (3), which map.js adds
+                view.ui.add(locate, { position: "top-left", index: 2 });
+                applyLabel();
+                onChange(applyLabel);
+                resolve(locate);
+            } catch (err) {
+                reject(err);
             }
-        });
-
-        // Error handler for location failures with bilingual alerts
-        locateBtn.on("locate-error", (event) => {
-            console.error("Locate Widget Error:", event.error);
-            
-            const lang = typeof getCurrentLang === "function" ? getCurrentLang() : "EN";
-            const errorMsg = event.error?.message || "";
-
-            if (lang === "JA") {
-                // Japanese Alert Messages
-                if (errorMsg.includes("denied")) {
-                    alert("位置情報のアクセスが拒否されました。現在地を表示するには、ブラウザの設定で位置情報の権限を有効にしてください。");
-                } else if (errorMsg.includes("timeout")) {
-                    alert("位置情報の取得がタイムアウトしました。もう一度お試しいただくか、GPS接続をご確認ください。");
-                } else {
-                    alert("現在地を取得できませんでした。端末の設定をご確認ください。");
-                }
-            } else {
-                // English Alert Messages
-                if (errorMsg.includes("denied")) {
-                    alert("Location access was denied. Please enable location permissions in your browser settings to find your position.");
-                } else if (errorMsg.includes("timeout")) {
-                    alert("Location request timed out. Please try again or check your GPS connection.");
-                } else {
-                    alert("Unable to acquire your current location. Please check your device settings.");
-                }
-            }
-        });
-
-        // Add to top-left corner below zoom and control panel controls
-        view.ui.add(locateBtn, {
-            position: "top-left",
-            index: 2
         });
     });
 }

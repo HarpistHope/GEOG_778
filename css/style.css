@@ -1,484 +1,320 @@
 /* ==========================================================================
-   ForeignHokkaido - Modern Glassmorphism UI Stylesheet
-   Design System Architecture: Glassmorphism, Design Tokens & Fluid Layout
+   ForeignHokkaido — stylesheet
+   Class prefixes: app-/header- (page chrome), fh- (map controls), tour- (onboarding)
    ========================================================================== */
 
 :root {
-    /* Color Palette - Vibrant Indigo/Slate Design System */
     --color-primary: #1b365d;
     --color-primary-hover: #2563eb;
-    --color-primary-subtle: rgba(27, 54, 93, 0.08);
     --color-primary-glow: rgba(27, 54, 93, 0.25);
-
-    --color-success: #10b981;
-    --color-warning: #f59e0b;
-    --color-danger: #ef4444;
-
     --color-surface-base: #ffffff;
-    --color-surface-glass: rgba(255, 255, 255, 0.90);
-    --color-surface-hover: rgba(241, 245, 249, 0.8);
-    --color-border: rgba(226, 232, 240, 0.85);
-    --color-border-subtle: rgba(241, 245, 249, 0.9);
-
+    --color-surface-glass: rgba(255, 255, 255, 0.92);
+    --color-border: rgba(226, 232, 240, 0.9);
     --color-text-title: #0f172a;
     --color-text-body: #334155;
     --color-text-muted: #64748b;
+    --color-focus: #2563eb;
 
-    /* Typography */
-    --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  
-    /* Elevating Shadows & Geometry */
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --font-family-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+
     --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
     --shadow-lg: 0 12px 28px -6px rgba(15, 23, 42, 0.12), 0 8px 12px -4px rgba(15, 23, 42, 0.05);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    
+
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
-    --radius-full: 9999px;
-    
+
+    --header-h: 65px;
+    --ribbon-h: 96px; /* bottom ribbon + gap on mobile; keep in sync with view.padding in map.js */
     --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-normal: 240ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Global Box-Sizing & Base Reset */
-*, *:before, *:after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
-    height: 100vh;
-    width: 100vw;
+    height: 100%;
+    width: 100%;
     overflow: hidden;
     font-family: var(--font-family-base);
     color: var(--color-text-body);
-    background-color: #0b0f19;
+    background: #0b0f19;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Map View Container */
-#viewDiv {
-    height: 100%;
-    width: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 1;
-}
+#viewDiv { position: absolute; inset: 0; z-index: 1; }
 
-/* Esri Widget Global Font Polish */
-.esri-widget, 
-.esri-popup__content,
-.esri-popup__header-title {
-    font-family: var(--font-family-base) !important;
-    color: var(--color-text-title) !important;
-}
+:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
 
-/* ==========================================================================
-   FLOATING TOP HEADER OVERLAY RIBBON (Desktop Default)
-   ========================================================================== */
+.esri-popup__content, .esri-popup__header-title { font-family: var(--font-family-base); }
+
+/* ---------- Header ribbon ---------- */
 .app-header {
     position: absolute;
     top: 5px;
     left: 50%;
     width: 99%;
-    height: 65px;
+    height: var(--header-h);
     transform: translateX(-50%);
     z-index: 99;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 18px;
+    padding: 8px 18px;
     background: var(--color-surface-glass);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    padding: 8px 18px;
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    min-width: 340px;
-    border: 1px solid var(--color-border);
 }
 
-.header-title {
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: var(--color-primary);
-    letter-spacing: -0.01em;
-}
+.header-text { min-width: 0; }
+.header-title { font-weight: 700; font-size: 0.95rem; color: var(--color-primary); letter-spacing: -0.01em; white-space: nowrap; }
+.header-subtitle { font-size: 0.7rem; color: var(--color-text-muted); font-weight: 500; margin-top: 1px; }
 
-.header-subtitle {
-    font-size: 0.7rem;
-    color: var(--color-text-muted);
-    font-weight: 500;
-    margin-top: 1px;
-}
-
-.header-controls {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
+.header-controls { display: flex; gap: 8px; align-items: center; }
 
 .header-btn {
-    background: #f8fafc;
     height: 36px;
-    border: 1px solid var(--color-border);
     padding: 0 12px;
+    font: inherit;
     font-size: 0.75rem;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
     font-weight: 600;
     color: var(--color-text-body);
-    transition: all var(--transition-fast);
+    background: #f8fafc;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
 }
+.header-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: var(--color-text-title); }
+.header-btn.primary { background: var(--color-primary); color: #fff; border-color: transparent; box-shadow: 0 2px 6px var(--color-primary-glow); }
+.header-btn.primary:hover { background: var(--color-primary-hover); }
 
-.header-btn:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-    color: var(--color-text-title);
-}
+/* ---------- Esri top-left stack sits below the header ---------- */
+.esri-ui-top-left { top: var(--header-h) !important; }
 
-.header-btn.primary {
-    background: var(--color-primary);
-    color: white;
-    border: none;
-    box-shadow: 0 2px 6px var(--color-primary-glow);
-}
+/* ---------- Map controls button + panel ---------- */
+.fh-controls { position: relative; }
 
-.header-btn.primary:hover {
-    background: var(--color-primary-hover);
-}
-
-/* ==========================================================================
-   POLISHED MAP CONTROLS & PANEL PROPORTIONS
-   ========================================================================== */
-
-/* Nudge the entire top-left Esri container down so it breathes beneath the header */
-.esri-ui-top-left {
-    top: 65px !important;
-    /* left: 1px !important; */
-}
-
-/* Match the Map Controls button color and crisp white look to header buttons */
-button#controlPanelCustomBtn.esri-widget.esri-widget--button {
-    width: auto !important;
-    min-width: 220px !important;
-    height: 40px !important;
-    padding: 0 16px !important;
-    background: #ffffff !important;
-    color: var(--color-text-body, #1e293b) !important;
-    border: 1px solid var(--color-border, #cbd5e1) !important;
-    border-radius: var(--radius-sm, 8px) !important;
-    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1)) !important;
-    font-family: var(--font-family-base, inherit) !important;
-    font-weight: 600 !important;
-    font-size: 0.75rem !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 6px !important;
-    cursor: pointer !important;
-    white-space: nowrap !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-}
-
-button#controlPanelCustomBtn.esri-widget.esri-widget--button:hover {
-    background: #f8fafc !important;
-    border-color: #94a3b8 !important;
-    color: var(--color-text-title, #0f172a) !important;
-}
-
-/* Refine the Expanded Control Panel proportions to eliminate the "blocky" feel */
-#controlPanelDiv {
-    padding: 18px !important;
-    border-radius: var(--radius-lg, 12px) !important;
-    box-shadow: var(--shadow-xl) !important;
-    background: var(--color-surface-glass, rgba(255, 255, 255, 0.95)) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    border: 1px solid var(--color-border, #cbd5e1) !important;
-    max-height: 80vh !important;
-    overflow-y: auto !important;
-}
-
-
-
-/* ==========================================================================
-   MOBILE SCREEN CONFIGURATIONS (< 768px)
-   ========================================================================== */
-@media (max-width: 768px) {
-    
-    /* 1. Move Header Ribbon to the Bottom */
-    .app-header {
-        top: auto !important;
-        bottom: 20px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        height: 64px !important;
-        width: 96% !important;
-        min-width: unset !important;
-        padding: 8px 12px !important;
-        flex-direction: row !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        background: var(--color-surface-glass) !important;
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        z-index: 999 !important;
-        border-radius: var(--radius-md) !important;
-    }
-
-    .header-text, .header-subtitle {
-        display: none; 
-    }
-
-    .header-controls {
-        width: 100% !important;
-        justify-content: space-around !important;
-        gap: 6px !important;
-    }
-
-    .header-btn {
-        flex: 1 !important;
-        padding: 6px 4px !important;
-        font-size: 0.7rem !important;
-        min-height: 38px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        text-align: center !important;
-    }
-
-    /* 2. Strictly Constrain Expanded Drawers on Mobile */
-    .esri-expand__content--expanded {
-        position: fixed !important;
-        top: 16px !important;
-        left: 55px !important; 
-        width: 260px !important;
-        max-width: calc(90vw - 60px) !important; 
-        max-height: 60vh !important;
-        overflow-y: auto !important; 
-        box-shadow: var(--shadow-lg) !important;
-        border-radius: var(--radius-md) !important;
-        z-index: 9999 !important;
-        background: var(--color-surface-base) !important;
-    }
-
-    .esri-expand__content--expanded > div,
-    .esri-expand__content--expanded .esri-widget {
-        width: 100% !important;
-        max-width: 100% !important;
-        background: var(--color-surface-base) !important;
-    }
-
-    .esri-expand__content--expanded select {
-        width: 100% !important;
-        max-width: 100% !important;
-        text-overflow: ellipsis;
-    }
-
-    .esri-expand__content--expanded label {
-        white-space: normal !important;
-        word-break: break-word !important;
-        font-size: 0.75rem !important;
-    }
-
-    /* 3. Floating mobile popups positioned above the bottom ribbon */
-    .esri-popup__main-container,
-    .esri-popup--is-docked .esri-popup__main-container {
-        position: fixed !important;
-        bottom: 96px !important; 
-        left: 16px !important;            
-        right: 16px !important;          
-        width: auto !important;           
-        max-width: 420px !important;      
-        max-height: 35vh !important;      
-        margin: 0 auto !important;        
-        border-radius: var(--radius-md) !important;    
-        box-shadow: var(--shadow-lg) !important;
-        border: 1px solid var(--color-border) !important;
-        overflow-y: auto !important; 
-        background: var(--color-surface-base) !important;
-    }
-
-    .esri-popup__pointer {
-        display: none !important;         
-    }
-}
-
-/* Sleek Glassmorphism Popup Overrides */
-.esri-popup__main-container {
-    background: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    border-radius: 14px !important;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
-    border: 1px solid rgba(226, 232, 240, 0.8) !important;
-}
-
-.esri-popup__header {
-    background: transparent !important;
-    padding: 14px 16px 8px 16px !important;
-}
-
-.esri-popup__header-title {
-    font-size: 0.95rem !important;
-    font-weight: 700 !important;
-    color: var(--color-primary) !important;
-}
-
-.esri-popup__content {
-    padding: 0 16px 16px 16px !important;
-    font-size: 0.82rem !important;
-    line-height: 1.5 !important;
-}
-
-.esri-popup__button {
-    color: var(--color-primary) !important;
-}
-
-.esri-popup__button:hover {
-    background: rgba(27, 54, 93, 0.08) !important;
-}
-
-/* Clean Onboarding Tour Overlay (Zero Blur Bugs) */
-.tour-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(15, 23, 42, 0.75); /* Rich, professional dark dim */
-    z-index: 9999;
+#controlPanelCustomBtn.esri-widget--button {
+    width: auto;
+    min-width: 220px;
+    height: 40px;
+    padding: 0 16px;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-body);
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
     display: flex;
     align-items: center;
     justify-content: center;
+    white-space: nowrap;
+    cursor: pointer;
+}
+#controlPanelCustomBtn.esri-widget--button:hover { background: #f8fafc; border-color: #94a3b8; color: var(--color-text-title); }
+#controlPanelCustomBtn.esri-widget--button.is-open { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
+.fh-panel {
+    position: absolute;
+    top: 46px;
+    left: 0;
+    z-index: 100;
+    width: 290px;
+    max-height: calc(100dvh - var(--header-h) - 60px);
+    overflow-y: auto;
+    padding: 16px;
+    font-size: 0.8rem;
+    color: var(--color-text-body);
+    background: var(--color-surface-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+}
+.fh-panel[hidden] { display: none; }
+.fh-panel h3 { font-size: 0.85rem; font-weight: 700; color: var(--color-primary); padding-bottom: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--color-border); }
+
+.fh-field { margin-bottom: 12px; }
+.fh-field label, .fh-section-title { display: block; font-size: 0.72rem; font-weight: 700; color: var(--color-text-title); margin-bottom: 5px; }
+.fh-section-title { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--color-border); }
+
+.fh-select {
+    width: 100%;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 0.78rem;
+    color: var(--color-text-body);
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    text-overflow: ellipsis;
+}
+
+.fh-cat { padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
+.fh-cat-title { font-size: 0.72rem; font-weight: 700; color: var(--color-text-muted); margin-bottom: 5px; }
+.fh-check { display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; font-size: 0.76rem; line-height: 1.35; cursor: pointer; }
+.fh-check input { margin-top: 2px; flex: none; }
+
+.fh-links { display: flex; flex-direction: column; gap: 6px; }
+.fh-link {
+    display: block;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 6px;
+}
+.fh-link.is-survey { background: #007ac2; }
+.fh-link.is-report { background: #3f6f9a; }
+.fh-link.is-bug { background: #c81e1e; }
+.fh-link:hover { filter: brightness(1.1); }
+
+.fh-error { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: #fff; font-size: 0.95rem; line-height: 1.6; }
+
+/* ---------- Toast (location errors) ---------- */
+.fh-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    z-index: 10001;
+    max-width: min(92vw, 460px);
+    padding: 12px 16px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #fff;
+    background: #1e293b;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    transform: translate(-50%, 16px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fh-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- Popups ---------- */
+.esri-popup__main-container {
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 14px;
+    box-shadow: var(--shadow-xl);
+}
+.esri-popup__header { background: transparent; padding: 14px 16px 8px; }
+.esri-popup__header-title { font-size: 0.95rem; font-weight: 700; color: var(--color-primary); }
+.esri-popup__content { padding: 0 16px 16px; font-size: 0.82rem; line-height: 1.5; }
+.esri-popup__button { color: var(--color-primary); }
+
+/* ---------- Tour ---------- */
+.tour-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.72); /* used on steps with no target */
     opacity: 0;
     transition: opacity 0.3s ease;
 }
+.tour-overlay.active { opacity: 1; }
+
+/* The spotlight is a hole: its giant shadow dims everything else. */
+.tour-spot {
+    position: fixed;
+    border-radius: 10px;
+    box-shadow: 0 0 0 4px #3b82f6, 0 0 0 9999px rgba(15, 23, 42, 0.72);
+    pointer-events: none;
+    transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+.tour-spot--none { display: none; }
+.tour-overlay:has(.tour-spot:not(.tour-spot--none)) { background: transparent; }
 
 .tour-modal {
-    background: #ffffff;
+    position: relative;
     width: 90%;
     max-width: 420px;
     padding: 24px;
-    border-radius: 12px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
-    font-family: system-ui, -apple-system, sans-serif;
+    background: #fff;
+    border-radius: var(--radius-md);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
     transform: translateY(10px);
     transition: transform 0.3s ease;
-    z-index: 10002;
+}
+.tour-overlay.active .tour-modal { transform: none; }
+
+/* Keep the card clear of the header buttons when a header step is shown */
+@media (min-width: 769px) { .tour-overlay { align-items: flex-end; padding-bottom: 12vh; } }
+
+.tour-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 1rem; font-weight: 700; color: #1e293b; }
+.tour-step-count { flex: none; padding: 2px 8px; font-size: 0.7rem; font-weight: 600; color: var(--color-text-muted); background: #f1f5f9; border-radius: 12px; }
+.tour-body { margin-bottom: 20px; font-size: 0.85rem; line-height: 1.6; color: #475569; }
+.tour-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tour-actions { display: flex; gap: 8px; }
+.tour-btn { padding: 8px 16px; font: inherit; font-size: 0.78rem; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+.tour-btn-secondary { background: #f1f5f9; color: #475569; }
+.tour-btn-secondary:hover { background: #e2e8f0; }
+.tour-btn-primary { background: var(--color-primary); color: #fff; }
+.tour-btn-primary:hover { background: #122543; }
+
+/* ---------- Tablet: header gets tight ---------- */
+@media (max-width: 1000px) and (min-width: 769px) {
+    .header-subtitle { display: none; }
+    .header-btn { padding: 0 9px; }
 }
 
-.tour-overlay.active {
-    opacity: 1;
+/* ---------- Mobile (≤768px): header ribbon moves to the bottom ---------- */
+@media (max-width: 768px) {
+    .app-header {
+        top: auto;
+        bottom: 20px;
+        width: 96%;
+        height: 64px;
+        padding: 8px 10px;
+        border-radius: var(--radius-md);
+    }
+    .header-text { display: none; }
+    .header-controls { width: 100%; gap: 6px; }
+    .header-btn { flex: 1; min-width: 0; padding: 4px; font-size: 0.68rem; display: flex; align-items: center; justify-content: center; text-align: center; white-space: normal; line-height: 1.15; }
+
+    .esri-ui-top-left { top: 8px !important; }
+
+    #controlPanelCustomBtn.esri-widget--button { min-width: 0; width: 100%; }
+    .fh-panel { width: min(290px, calc(100vw - 72px)); max-height: calc(100dvh - 8px - 46px - var(--ribbon-h)); }
+
+    .esri-expand__content--expanded { max-width: calc(100vw - 72px); max-height: 50vh; overflow-y: auto; }
+
+    .esri-popup__main-container,
+    .esri-popup--is-docked .esri-popup__main-container {
+        position: fixed;
+        bottom: var(--ribbon-h);
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-width: 420px;
+        max-height: 40vh;
+        margin: 0 auto;
+        overflow-y: auto;
+    }
+    .esri-popup__pointer { display: none; }
+
+    .tour-overlay { align-items: center; padding-bottom: 0; }
+    .fh-toast { bottom: calc(var(--ribbon-h) + 8px); }
 }
 
-.tour-overlay.active .tour-modal {
-    transform: translateY(0);
-}
-
-/* The Spotlight: Pops cleanly above the dark overlay with a glowing ring */
-.tour-highlight {
-    position: relative !important;
-    z-index: 10001 !important;
-    box-shadow: 0 0 0 4px #3b82f6, 0 0 25px rgba(59, 130, 246, 0.9) !important;
-    background-color: #ffffff !important;
-    color: #1b365d !important;
-    border-radius: 6px;
-    transform: scale(1.05);
-    transition: all 0.2s ease;
-}
-
-/* High-Specificity Spotlight Highlight for Tour Steps */
-.tour-highlight,
-button#controlPanelCustomBtn.tour-highlight,
-button#controlPanelCustomBtn.esri-widget.esri-widget--button.tour-highlight,
-.app-header .header-btn.tour-highlight {
-    position: relative !important;
-    z-index: 10001 !important;
-    box-shadow: 0 0 0 4px #3b82f6, 0 0 25px rgba(59, 130, 246, 0.9) !important;
-    background-color: #ffffff !important;
-    color: #1b365d !important;
-    border-radius: 6px !important;
-    transform: scale(1.05) !important;
-    transition: all 0.2s ease !important;
-}
-
-.tour-dimmed {
-    opacity: 0.35;
-    transition: opacity 0.2s ease;
-}
-
-.tour-header {
-    font-size: 16px;
-    font-weight: 700;
-    color: #1e293b;
-    margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.tour-step-count {
-    font-size: 11px;
-    font-weight: 600;
-    color: #64748b;
-    background: #f1f5f9;
-    padding: 2px 8px;
-    border-radius: 12px;
-}
-
-.tour-body {
-    font-size: 13.5px;
-    color: #475569;
-    line-height: 1.6;
-    margin-bottom: 20px;
-}
-
-.tour-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.tour-btn {
-    padding: 8px 16px;
-    font-size: 12.5px;
-    font-weight: 600;
-    border-radius: 6px;
-    cursor: pointer;
-    border: none;
-    transition: background 0.2s;
-}
-
-.tour-btn-secondary {
-    background: #f1f5f9;
-    color: #475569;
-}
-
-.tour-btn-secondary:hover {
-    background: #e2e8f0;
-}
-
-.tour-btn-primary {
-    background: #1b365d;
-    color: #ffffff;
-}
-
-.tour-btn-primary:hover {
-    background: #122543;
-}
-
-/* Precise Header Highlight for Tour */
-.tour-header-highlight {
-    position: relative !important;
-    z-index: 10000 !important;
-    display: inline-block !important; /* Prevents it from stretching full-width */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
