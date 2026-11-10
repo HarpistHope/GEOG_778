@@ -1,0 +1,500 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.7467,
+          41.9867
+        ]
+      },
+      "properties": {
+        "name_en": "Hakodate Nanae Snow Park",
+        "name_ja": "函館七飯スノーパーク",
+        "subprefecture": "Oshima",
+        "subprefecture_ja": "渡島総合振興局",
+        "municipality": "Nanae",
+        "municipality_ja": "七飯町",
+        "address_ja": "北海道亀田郡七飯町東大沼666",
+        "key_features": "Gondola 3,319 m long (about 15 min to the summit at roughly 1,000 m); 8 courses; a run of over 4,000 m; night skiing Fri–Sun",
+        "key_features_ja": "全長3,319mのゴンドラ（山頂まで約15分、標高約1,000m）、8コース、4,000m超のロングコース、金〜日はナイター営業",
+        "lifts": "3 lifts: 1 gondola + 2 lifts",
+        "lifts_ja": "3基：ゴンドラ1基＋リフト2基",
+        "cost": "Paid",
+        "cost_ja": "有料",
+        "season": "Mid-Dec to end of Mar (2025–26: Dec 13 – Mar 31)",
+        "season_ja": "12月中旬〜3月末（2025-26：12/13〜3/31）",
+        "phone": "0138-67-3355",
+        "status": "Verified",
+        "status_ja": "確認済み",
+        "coord_status": "Source map link (Weathernews)",
+        "source_url": "https://www.visit-hokkaido.jp/spot/detail_11430.html",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.6342,
+          41.9333
+        ]
+      },
+      "properties": {
+        "name_en": "Niyama Kogen Ski Area",
+        "name_ja": "ニヤマ高原スキー場",
+        "subprefecture": "Oshima",
+        "subprefecture_ja": "渡島総合振興局",
+        "municipality": "Nanae",
+        "municipality_ja": "七飯町",
+        "address_ja": "北海道亀田郡七飯町字仁山670",
+        "key_features": "Gentle family slopes and a 2,500 m course; 3 min walk from JR Niyama Station. Listed as suspended for the 2023–24 season; no confirmation of operation since. Call before going.",
+        "key_features_ja": "ファミリー向けの緩斜面と2,500mのコース。JR仁山駅から徒歩約3分。2023-24シーズンは営業休止と掲載。その後の営業は確認できず、事前の確認が必要。",
+        "lifts": "Not confirmed",
+        "lifts_ja": "未確認",
+        "cost": "Paid (check)",
+        "cost_ja": "有料（要確認）",
+        "season": "Normally late Dec – early Mar; operation uncertain",
+        "season_ja": "例年12月下旬〜3月上旬。営業は不確実",
+        "phone": "0138-65-2000",
+        "status": "Needs confirmation",
+        "status_ja": "要確認",
+        "coord_status": "Source map link (iko-yo)",
+        "source_url": "https://iko-yo.net/facilities/8069",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.6015,
+          42.0011
+        ]
+      },
+      "properties": {
+        "name_en": "Greenpia Onuma Ski Resort",
+        "name_ja": "リブマックスリゾート函館 グリーンピア大沼スキー場",
+        "subprefecture": "Oshima",
+        "subprefecture_ja": "渡島総合振興局",
+        "municipality": "Mori",
+        "municipality_ja": "森町",
+        "address_ja": "北海道茅部郡森町字赤井川229",
+        "key_features": "7 courses; night skiing 17:00–20:45; Greenpia Onuma hot spring about 1 min walk from the slopes",
+        "key_features_ja": "7コース、ナイター17:00〜20:45、ゲレンデから徒歩約1分にグリーンピア大沼の温泉（露天風呂）",
+        "lifts": "2 chairlifts",
+        "lifts_ja": "チェアリフト2基",
+        "cost": "Paid",
+        "cost_ja": "有料",
+        "season": "Mid-Jan to early Mar (2025–26: Jan 11 – Mar 8)",
+        "season_ja": "1月中旬〜3月上旬（2025-26：1/11〜3/8）",
+        "phone": "01374-5-2277",
+        "status": "Verified",
+        "status_ja": "確認済み",
+        "coord_status": "Source map link (Weathernews)",
+        "source_url": "https://weathernews.jp/ski/spot/31613/",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.9413,
+          41.9298
+        ]
+      },
+      "properties": {
+        "name_en": "Hakodate Usujiri Ski Area",
+        "name_ja": "函館市臼尻スキー場",
+        "subprefecture": "Oshima",
+        "subprefecture_ja": "渡島総合振興局",
+        "municipality": "Hakodate",
+        "municipality_ja": "函館市",
+        "address_ja": "北海道函館市臼尻町593-1",
+        "key_features": "Free municipal ski area; the only ski slope in Hakodate; 2 courses",
+        "key_features_ja": "無料の市営スキー場。函館市内唯一のゲレンデ。2コース",
+        "lifts": "2 rope tows (hours 13:00–21:00; from 9:00 on Sundays and holidays)",
+        "lifts_ja": "ロープトゥ2基（13:00〜21:00、日曜・祝日は9:00〜）",
+        "cost": "Free",
+        "cost_ja": "無料",
+        "season": "4th Saturday of Dec – 3rd Sunday of Mar",
+        "season_ja": "12月第4土曜〜3月第3日曜",
+        "phone": "0138-25-5797",
+        "status": "Partly verified",
+        "status_ja": "一部確認済み",
+        "coord_status": "UNVERIFIED (kept from the old file)",
+        "source_url": "https://www.hokkaido-np.co.jp/article/1269935/",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.4062,
+          41.5937
+        ]
+      },
+      "properties": {
+        "name_en": "Shiriuchi Town Ski Area",
+        "name_ja": "知内町営スキー場",
+        "subprefecture": "Oshima",
+        "subprefecture_ja": "渡島総合振興局",
+        "municipality": "Shiriuchi",
+        "municipality_ja": "知内町",
+        "address_ja": "北海道上磯郡知内町元町344-3",
+        "key_features": "Free town ski area; the southernmost lift-served ski area in Hokkaido; 3 courses, steepest about 29°; views of Mt. Hakodate across the strait; lodge but no restaurant",
+        "key_features_ja": "無料の町営スキー場。北海道最南端のリフト付きスキー場。3コース（最大斜度約29度）、津軽海峡越しに函館山を望む。ロッジあり（食堂なし）",
+        "lifts": "1 schlepp (disc) lift, one of very few in Hokkaido",
+        "lifts_ja": "シュレップリフト1基（北海道内でも珍しい）",
+        "cost": "Free",
+        "cost_ja": "無料",
+        "season": "Jan–Mar, 9:00–21:00 (2025–26)",
+        "season_ja": "1〜3月、9:00〜21:00（2025-26）",
+        "phone": "01392-6-7177",
+        "status": "Verified",
+        "status_ja": "確認済み",
+        "coord_status": "Source map link (Domingo)",
+        "source_url": "https://domingo.ne.jp/en/spot/2483",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.2766,
+          41.767
+        ]
+      },
+      "properties": {
+        "name_en": "Kaminokuni Yunodai Ski Area",
+        "name_ja": "上ノ国町湯ノ岱スキー場",
+        "subprefecture": "Hiyama",
+        "subprefecture_ja": "檜山振興局",
+        "municipality": "Kaminokuni",
+        "municipality_ja": "上ノ国町",
+        "address_ja": "北海道檜山郡上ノ国町湯ノ岱",
+        "key_features": "Free town ski area; one 300 m × 50 m ski/snowboard course and a sledding course; night skiing; heavy snowfall area",
+        "key_features_ja": "無料の町営スキー場。300m×幅50mのスキー・スノボコースとそり専用コース、ナイター営業、豪雪地帯",
+        "lifts": "1 rope tow (beginner) + 2 T-bar lifts",
+        "lifts_ja": "ロープトゥ1基（初級）＋Tバーリフト2基",
+        "cost": "Free",
+        "cost_ja": "無料",
+        "season": "Jan 9 – mid-Mar 2026; Mon–Sat 9:00–21:00, Sun 9:00–17:00; closed Dec 31–Jan 3",
+        "season_ja": "2026年1/9〜3月中旬、月〜土9:00〜21:00・日9:00〜17:00、12/31〜1/3休み",
+        "phone": "0139-56-3030",
+        "status": "Verified",
+        "status_ja": "確認済み",
+        "coord_status": "Source map link (Domingo)",
+        "source_url": "https://www.town.kaminokuni.lg.jp/hotnews/detail/00000301.html",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.2646,
+          41.933
+        ]
+      },
+      "properties": {
+        "name_en": "Taikoyama Ski Area (Assabu Town Ski Area)",
+        "name_ja": "太鼓山スキー場（厚沢部町民スキー場）",
+        "subprefecture": "Hiyama",
+        "subprefecture_ja": "檜山振興局",
+        "municipality": "Assabu",
+        "municipality_ja": "厚沢部町",
+        "address_ja": "北海道檜山郡厚沢部町上里368-2",
+        "key_features": "Small town-run family slope with night skiing. A third-party site lists a day ticket of ¥400 adult / ¥250 younger (not confirmed by the town)",
+        "key_features_ja": "家族向けの小さな町営ゲレンデ、ナイター営業。外部サイトに1日券 大人400円・中学生以下250円の記載あり（町では未確認）",
+        "lifts": "1 rope lift",
+        "lifts_ja": "ロープリフト1基",
+        "cost": "Low-cost (check)",
+        "cost_ja": "低額（要確認）",
+        "season": "Mid-Jan to late Mar; weekdays 13:00–21:00 (15:00 in term), weekends 10:00–21:00",
+        "season_ja": "1月中旬〜3月下旬、平日13:00〜21:00（学期中15:00〜）、土日祝10:00〜21:00",
+        "phone": "0139-64-3436",
+        "status": "Partly verified",
+        "status_ja": "一部確認済み",
+        "coord_status": "Source map link (Spo-Revo)",
+        "source_url": "https://iko-yo.net/facilities/130475",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.1652,
+          42.0003
+        ]
+      },
+      "properties": {
+        "name_en": "Tomioka Ski Area",
+        "name_ja": "富岡スキー場",
+        "subprefecture": "Hiyama",
+        "subprefecture_ja": "檜山振興局",
+        "municipality": "Otobe",
+        "municipality_ja": "乙部町",
+        "address_ja": "北海道爾志郡乙部町字富岡131",
+        "key_features": "Town-run; course A 200 m and course B 160 m; night lighting and a lodge; weekdays 15:00–21:00, weekends 10:00–21:00",
+        "key_features_ja": "町営。Aコース200m・Bコース160m、ナイター照明、ロッジあり。平日15:00〜21:00、土日10:00〜21:00",
+        "lifts": "1 T-bar lift",
+        "lifts_ja": "Tバーリフト1基",
+        "cost": "Free (per a 2026 listing)",
+        "cost_ja": "無料（外部記事による）",
+        "season": "Jan 4 – end of Feb, snow permitting",
+        "season_ja": "1/4〜2月末（積雪次第）",
+        "phone": "0139-62-3214",
+        "status": "Partly verified",
+        "status_ja": "一部確認済み",
+        "coord_status": "UNVERIFIED (kept from the old file)",
+        "source_url": "https://www.town.otobe.lg.jp/section/kyoui/e0taal00000007wu.html",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          139.5161,
+          42.1706
+        ]
+      },
+      "properties": {
+        "name_en": "Okushiri Sakuragaoka Ski Area",
+        "name_ja": "奥尻町桜ケ丘スキー場",
+        "subprefecture": "Hiyama",
+        "subprefecture_ja": "檜山振興局",
+        "municipality": "Okushiri",
+        "municipality_ja": "奥尻町",
+        "address_ja": "北海道奥尻郡奥尻町字奥尻501",
+        "key_features": "Island town ski area. Season pass only: adult ¥2,200, high school ¥1,100, junior high and under free. Town page last updated Feb 2023; it was not in a 2026 list of operating areas, so confirm before going",
+        "key_features_ja": "離島の町営スキー場。シーズン券のみ：大人2,200円、高校生1,100円、中学生以下無料。町ページは2023年2月更新で、2026年の営業一覧には掲載なし。事前に要確認",
+        "lifts": "Not confirmed (lift management building on site)",
+        "lifts_ja": "未確認（リフト管理棟あり）",
+        "cost": "Season pass only",
+        "cost_ja": "シーズン券のみ",
+        "season": "Early Jan – mid-Mar; weekends 10:00–21:00, other days 13:00–21:00",
+        "season_ja": "1月上旬〜3月中旬、土日祝10:00〜21:00・平日13:00〜21:00",
+        "phone": "01397-2-3890",
+        "status": "Needs confirmation",
+        "status_ja": "要確認",
+        "coord_status": "UNVERIFIED (kept from the old file)",
+        "source_url": "https://www.town.okushiri.lg.jp/hotnews/detail/00003676.html",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          139.8785,
+          42.4172
+        ]
+      },
+      "properties": {
+        "name_en": "Setana Niwa Ski Area",
+        "name_ja": "せたな町営丹羽スキー場",
+        "subprefecture": "Hiyama",
+        "subprefecture_ja": "檜山振興局",
+        "municipality": "Setana",
+        "municipality_ja": "せたな町",
+        "address_ja": "北海道久遠郡せたな町北檜山区西丹羽649-2",
+        "key_features": "Free town-run slope in the Kitahiyama area",
+        "key_features_ja": "北檜山区にある無料の町営ゲレンデ",
+        "lifts": "1 rope tow",
+        "lifts_ja": "ロープトゥ1基",
+        "cost": "Free",
+        "cost_ja": "無料",
+        "season": "Early to mid-Jan (per a directory listing)",
+        "season_ja": "1月上旬〜中旬（施設一覧による）",
+        "phone": "0137-84-5111",
+        "status": "Partly verified",
+        "status_ja": "一部確認済み",
+        "coord_status": "UNVERIFIED (kept from the old file)",
+        "source_url": "https://www.navitime.co.jp/category/0102005/01371013000/",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          139.8519,
+          42.2268
+        ]
+      },
+      "properties": {
+        "name_en": "Setana Taisei Ski Area",
+        "name_ja": "大成スキー場",
+        "subprefecture": "Hiyama",
+        "subprefecture_ja": "檜山振興局",
+        "municipality": "Setana",
+        "municipality_ja": "せたな町",
+        "address_ja": "北海道久遠郡せたな町大成区花歌392",
+        "key_features": "Listed in a directory for early Jan – early Mar, but not in a 2026 list of operating areas. Confirm before going",
+        "key_features_ja": "施設一覧では1月上旬〜3月上旬の掲載。2026年の営業一覧には掲載なし。事前に要確認",
+        "lifts": "Not confirmed",
+        "lifts_ja": "未確認",
+        "cost": "Not confirmed",
+        "cost_ja": "未確認",
+        "season": "Early Jan – early Mar (per a directory listing)",
+        "season_ja": "1月上旬〜3月上旬（施設一覧による）",
+        "phone": "0139-84-5511",
+        "status": "Needs confirmation",
+        "status_ja": "要確認",
+        "coord_status": "UNVERIFIED (kept from the old file)",
+        "source_url": "https://www.navitime.co.jp/category/0102005/01371/",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.2364,
+          42.213
+        ]
+      },
+      "properties": {
+        "name_en": "Yakumo Town Ski Area",
+        "name_ja": "八雲町営スキー場",
+        "subprefecture": "Oshima",
+        "subprefecture_ja": "渡島総合振興局",
+        "municipality": "Yakumo",
+        "municipality_ja": "八雲町",
+        "address_ja": "北海道二海郡八雲町春日",
+        "key_features": "Town-run ski area with 3 courses; lift fees apply",
+        "key_features_ja": "3コースの町営スキー場。リフト料金あり",
+        "lifts": "1 chairlift",
+        "lifts_ja": "チェアリフト1基",
+        "cost": "Paid",
+        "cost_ja": "有料",
+        "season": "Jan 7 – Mar 8 (2025–26)",
+        "season_ja": "1/7〜3/8（2025-26）",
+        "phone": "",
+        "status": "Verified",
+        "status_ja": "確認済み",
+        "coord_status": "Source map link (Weathernews)",
+        "source_url": "https://weathernews.jp/ski/spot/32304/",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.2037,
+          42.4648
+        ]
+      },
+      "properties": {
+        "name_en": "Imakane Pirika Ski Resort",
+        "name_ja": "今金町ピリカスキー場",
+        "subprefecture": "Hiyama",
+        "subprefecture_ja": "檜山振興局",
+        "municipality": "Imakane",
+        "municipality_ja": "今金町",
+        "address_ja": "北海道瀬棚郡今金町美利河205-1",
+        "key_features": "5 courses from beginner to advanced, including an ungroomed area; night skiing Tue/Thu/Sat in Jan–Feb",
+        "key_features_ja": "初級〜上級の全5コース（非圧雪バーンあり）、1〜2月は火・木・土にナイター営業",
+        "lifts": "1 pair lift",
+        "lifts_ja": "ペアリフト1基",
+        "cost": "Paid",
+        "cost_ja": "有料",
+        "season": "Dec 26, 2026 – Mar 22, 2027 (planned, snow permitting)",
+        "season_ja": "2026年12/26〜2027年3/22（予定・積雪次第）",
+        "phone": "",
+        "status": "Verified",
+        "status_ja": "確認済み",
+        "coord_status": "Source map link (Weathernews)",
+        "source_url": "https://iko-yo.net/facilities/8106",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.0079,
+          42.1337
+        ]
+      },
+      "properties": {
+        "name_en": "Hiratanai Ski Area",
+        "name_ja": "ひらたないスキー場",
+        "subprefecture": "Oshima",
+        "subprefecture_ja": "渡島総合振興局",
+        "municipality": "Yakumo",
+        "municipality_ja": "八雲町",
+        "address_ja": "北海道二海郡八雲町熊石鮎川町434-1",
+        "key_features": "Free local slope in the Kumaishi area facing the Sea of Japan; evening-oriented hours",
+        "key_features_ja": "日本海に面した熊石地区の無料ゲレンデ。夕方中心の営業",
+        "lifts": "2 rope tows",
+        "lifts_ja": "ロープトゥ2基",
+        "cost": "Free",
+        "cost_ja": "無料",
+        "season": "Early Jan – late Feb; weekdays 17:00–21:00, Sat/Sun/holidays 13:00–17:00 (older listing; confirm)",
+        "season_ja": "1月上旬〜2月下旬、平日17:00〜21:00、土日祝13:00〜17:00（古い掲載情報・要確認）",
+        "phone": "01398-2-3716",
+        "status": "Partly verified",
+        "status_ja": "一部確認済み",
+        "coord_status": "Source map link (NAVITIME)",
+        "source_url": "https://www.ehako.com/maps/archives/2360",
+        "checked": "2026-11-10"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          140.4264,
+          41.7128
+        ]
+      },
+      "properties": {
+        "name_en": "Furusato no Mori Winter Play Area (no lifts)",
+        "name_ja": "ふるさとの森スキー場",
+        "subprefecture": "Oshima",
+        "subprefecture_ja": "渡島総合振興局",
+        "municipality": "Kikonai",
+        "municipality_ja": "木古内町",
+        "address_ja": "北海道上磯郡木古内町字木古内147",
+        "key_features": "Free winter play field (sledding etc.). The Kikonai board of education says it does not run lifts. Weekends and holidays 10:00–12:00 and 13:00–16:00. A closure notice dated Mar 3, 2026 suggests the 2025–26 season has ended",
+        "key_features_ja": "無料の冬の遊び場（そり遊び等）。木古内町教育委員会は「リフトの運行は行っておりません」と案内。土日祝10:00〜12:00・13:00〜16:00。2026年3月3日付のクローズのお知らせあり（2025-26シーズン終了と思われる）",
+        "lifts": "No lifts",
+        "lifts_ja": "リフトなし",
+        "cost": "Free",
+        "cost_ja": "無料",
+        "season": "Early Jan – early Mar, slope conditions permitting",
+        "season_ja": "1月上旬〜3月上旬（ゲレンデ状況による）",
+        "phone": "01392-2-2002",
+        "status": "Partly verified",
+        "status_ja": "一部確認済み",
+        "coord_status": "Source map link (Spo-Revo)",
+        "source_url": "https://kikonai.ed.jp/facility/ski_resort/",
+        "checked": "2026-11-10"
+      }
+    }
+  ]
+}

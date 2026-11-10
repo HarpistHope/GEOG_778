@@ -332,7 +332,7 @@ Location
 (P07_002) 	Location of fuel refueling stations 	Character string type (CharacterString)
 
 
-Evacuation Facilitys (File: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P20.html,  P20-12_01_GML.zip)
+Evacuation Facilities (File: https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-P20.html,  P20-12_01_GML.zip)
  	Facilities listed in the regional disaster prevention plan designated by the mayor of the municipality to evacuate residents in the event of a natural disaster or to rescue evacuating residents, etc.
     Attributes:  	Attribute name
 (shp attribute in parentheses) 	Description 	Type of attribute

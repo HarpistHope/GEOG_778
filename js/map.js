@@ -8,7 +8,7 @@ import { t, municipalities, districts, subprefectures } from "./localization.js"
    CONSTANTS & STATE
    ========================================================================== */
 
-const HOME = { center: [140.3, 42.09], zoom: 7 };
+const HOME = { center: [140.3, 42.09], zoom: 9 };
 const EASE = { duration: 1500, easing: "in-out-cubic" };
 const SERVICES = "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services";
 const TRASH_MUNI_FIELD = "N03_004"; // field on the trash layer holding the Japanese municipality name
@@ -33,6 +33,7 @@ let view = null;
 let toggleBtn = null;
 let panelEl = null;
 let panelOpen = false;
+let medicalMultiOnly = false; // "multilingual clinics only" toggle under the medical layer
 let muniFilter = "ALL";        // value of the municipality filter dropdown
 let trashTown = "ALL";         // value of the trash lookup dropdown
 let spatialFilter = null;      // { geometry, spatialRelationship } | null
@@ -69,6 +70,27 @@ const G = (field) => `g($feature, '${field}')`;
 const NZ = (field, dflt = "—") => `nz(${G(field)}, '${dflt}')`;
 
 // Arcade: translate `var <v>` through a list of [japanese, english] pairs
+// Reception hours arrive as Japanese free text ("月-金:8:45-11:30,13:00-14:30; 土:8:45-11:30", "24時間、365日").
+// English mode converts the common patterns; anything unusual stays as written.
+function translateHours(raw) {
+    const W = { 月: "Mon", 火: "Tue", 水: "Wed", 木: "Thu", 金: "Fri", 土: "Sat", 日: "Sun" };
+    const ord = (list) => list.split(",").map((n) => n + ({ 1: "st", 2: "nd", 3: "rd" }[n] || "th")).join("/");
+    const days = "[月火水木金土日]";
+    return raw
+        .replace(/24時間/g, "24 hours").replace(/365日/g, "365 days")
+        .replace(new RegExp(`第([\\d,]+)(${days})曜日の前の(${days})曜日`, "g"), (m, n, a, b) => `the ${W[b]} before the ${ord(n)} ${W[a]}`)
+        .replace(new RegExp(`第([\\d,]+)(${days})曜日`, "g"), (m, n, a) => `${ord(n)} ${W[a]}`)
+        .replace(new RegExp(`(${days})曜日の午後`, "g"), (m, a) => `${W[a]} afternoons`)
+        .replace(new RegExp(`(${days})曜日の午前`, "g"), (m, a) => `${W[a]} mornings`)
+        .replace(/（([^）]*)を除く）/g, "(except $1)")
+        .replace(new RegExp(`(${days})-(${days})`, "g"), "$1–$2")
+        .replace(new RegExp(days, "g"), (d) => W[d])
+        .replace(/曜日/g, "").replace(/祝日?/g, "public holidays").replace(/休診/g, "closed")
+        .replace(/[：]/g, ":").replace(/[、，]/g, ", ").replace(/\u3000+/g, "; ").replace(/[（]/g, " (").replace(/[）]/g, ")")
+        .replace(/([a-z]):(?=\d)/g, "$1: ").replace(/,(?=\d)/g, ", ").replace(/(\d)\(/g, "$1 (")
+        .replace(/\s+/g, " ").replace(/\s+([;,])/g, "$1").trim();
+}
+
 const decodePairs = (v, pairs, fallback = v) =>
     `Decode(${v}, ${pairs.map(([a, b]) => `${q(a)}, ${q(b)}`).join(", ")}, ${fallback})`;
 const MUNI_PAIRS = municipalities.map((m) => [m.ja, m.en]);
@@ -112,6 +134,44 @@ const HR = `<hr style="border:none;border-top:1px solid #ddd;margin:8px 0">`;
 const note = (html) => `<i style="font-size:11px;color:#666;display:block;margin-top:4px">${html}</i>`;
 const body = (html) => [{ type: "text", text: `<div style="font-size:13px;line-height:1.5">${html}</div>` }];
 const addrNote = (L) => (L === "EN" ? note("💡 Addresses are available in Japanese only") : "");
+
+// Callout that opens a popup with the single most useful fact.
+const TONES = {
+    info: ["#eff6ff", "#bfdbfe", "#1e3a8a"], good: ["#ecfdf5", "#a7f3d0", "#065f46"],
+    warn: ["#fffbeb", "#fde68a", "#92400e"], plain: ["#f3f4f6", "#e5e7eb", "#111827"]
+};
+const lead = (html, tone = "info") => {
+    const [bg, border, fg] = TONES[tone];
+    return `<div style="background:${bg};border:1px solid ${border};color:${fg};padding:8px 10px;border-radius:6px;margin-bottom:10px;font-size:14px;font-weight:600;line-height:1.4">${html}</div>`;
+};
+const chip = (text, neutral = false) => el("span", { textContent: text, style: `display:inline-block;margin:0 6px 6px 0;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;${neutral ? "background:#f3f4f6;border:1px solid #e5e7eb;color:#374151" : "background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46"}` });
+const srcNote = (L, year) => note(tr(L,
+    `Source: MLIT National Land Numerical Information (${year}). Details may have changed.`,
+    `出典：国土数値情報（${year}年）。最新の情報と異なる場合があります。`));
+const flagOn = (g, ...fields) => fields.some((f) => /^(1|true|yes)$/i.test(attr(g, f)));
+
+// "Directions" (Google Maps) and "Copy address" buttons for point popups.
+const ACTION_STYLE = "display:inline-block;padding:4px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#1d4ed8;font:600 12px system-ui,sans-serif;text-decoration:none;cursor:pointer";
+function directionsUrl(g, L) {
+    const pt = g.geometry?.type === "point" ? g.geometry : g.geometry?.extent?.center;
+    let lat = pt?.latitude, lon = pt?.longitude;
+    if (lat == null || lon == null) { const loc = view?.popup?.location; lat = loc?.latitude; lon = loc?.longitude; }
+    return lat == null || lon == null ? "" : `https://www.google.com/maps/dir/?api=1&destination=${lat.toFixed(6)},${lon.toFixed(6)}&hl=${L === "JA" ? "ja" : "en"}`;
+}
+const actions = (L, addressField) => custom((g) => {
+    const box = el("div", { style: `${BLOCK};margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center` });
+    const url = directionsUrl(g, L);
+    if (url) box.append(el("a", { href: url, target: "_blank", rel: "noopener noreferrer", textContent: `🧭 ${tr(L, "Directions", "経路を表示")}`, style: ACTION_STYLE }));
+    const address = addressField ? attr(g, addressField) : "";
+    if (address && navigator.clipboard) {
+        const btn = el("button", { type: "button", textContent: `📋 ${tr(L, "Copy address (Japanese)", "住所をコピー")}`, style: ACTION_STYLE });
+        btn.addEventListener("click", () => navigator.clipboard.writeText(address)
+            .then(() => { btn.textContent = `✓ ${tr(L, "Copied", "コピーしました")}`; }).catch(() => {}));
+        box.append(btn);
+    }
+    box.hidden = !box.childNodes.length;
+    return box;
+});
 
 /* ==========================================================================
    POPUP TEMPLATES — one builder per layer, called as builder(lang, layer)
@@ -161,54 +221,85 @@ const POPUPS = {
     }),
 
     trash: (L) => {
-        const s = L === "JA" ? "_ja" : "";
-        const section = (color, icon, label, daysExpr, notesExpr) =>
-            `<div style="margin-bottom:8px"><b style="color:${color}">${icon} ${label}:</b><br>` +
-            (daysExpr ? `🗓️ <b>${tr(L, "Days", "収集日")}:</b> ${X(daysExpr)}<br>` : "") +
-            `ℹ️ <i style="color:#4b5563">${X(notesExpr)}</i></div>`;
-        const field = (name, base, dflt = "—") => E(name, `return ${NZ(base + s, dflt)};`);
+        const sfx = L === "JA" ? "_ja" : "";
+        // Read a bilingual field; falls back to English if the Japanese text is missing.
+        // "Not confirmed" placeholders are treated as empty so they are not repeated in every section.
+        const val = (g, base) => { const v = attr(g, base + sfx) || (L === "JA" ? attr(g, base) : ""); return /^(Not confirmed|未確認)/.test(v) ? "" : v; };
+        const SECTIONS = [
+            ["#b91c1c", "🔥", "Burnable waste", "燃やせるごみ", "burnable_s", "burnable_r"],
+            ["#92400e", "🧱", "Non-burnable waste", "燃やせないごみ", "nonburn_s", "nonburn_r"],
+            ["#047857", "♻️", "Plastics", "プラスチック", "plastic_sc", "plastic_ru"],
+            ["#1d4ed8", "🍾", "Recyclables", "資源物", "recyclab_1", "recyclable"],
+            ["#6b21a8", "🛋️", "Bulky waste", "粗大ごみ", null, "bulky_wast"]
+        ];
+        const STATUS = {
+            "Verified": ["good", "✅", "Checked against the town's official pages", "自治体の公式ページで確認済み"],
+            "Partly verified": ["info", "🟡", "Partly checked. Some details are missing, so confirm with your town", "一部のみ確認済み。不明な点は自治体にご確認ください"],
+            "Needs confirmation": ["warn", "⚠️", "Not yet verified. Please confirm with your town before relying on this", "未確認の情報です。自治体にご確認の上ご利用ください"]
+        };
         return {
             title: `🗑️ ${X("muni")} ${tr(L, "Garbage & Recycling Guide", "ごみ・リサイクル分別ガイド")}`,
-            content: [
-                ...body(`<div style="background:#fef3c7;border:1px solid #fde68a;padding:7px 9px;border-radius:5px;margin-bottom:8px;color:#92400e"><b>${X("disc")}</b></div>`),
-                custom((g) => {
-                    const url = safeUrl(attr(g, "trash_url"));
-                    const box = el("div", { style: `${BLOCK};background:#eff6ff;border:1px solid #bfdbfe;padding:8px 10px;border-radius:5px;margin-bottom:12px;text-align:center` });
-                    if (url) box.append("🔗 ", linkEl(url, tr(L, "Official town website / PDF calendar ↗", "自治体サイト・PDFカレンダーを開く ↗")));
-                    else box.hidden = true;
-                    return box;
-                }),
-                ...body(section("#b91c1c", "🔥", tr(L, "Burnable waste", "燃やせるごみ"), "bd", "br") +
-                section("#047857", "♻️", tr(L, "Plastics", "プラ容器包装"), "pd", "pr") +
-                section("#1d4ed8", "🍾", tr(L, "Recyclables", "資源物"), "rd", "rr") +
-                section("#6b21a8", "🛋️", tr(L, "Bulky waste", "粗大ごみ"), null, "bw"))
-            ],
+            content: [custom((g) => {
+                const box = el("div", { style: BLOCK });
+                const status = STATUS[attr(g, "status")];
+                const putOut = val(g, "putout");
+                const disc = val(g, "disclaimer") || tr(L, "Collection rules vary by area. Check your town's official calendar.", "収集ルールは地域により異なります。自治体の公式カレンダーをご確認ください。");
+                // 1. Answer first: when to put garbage out, then the warning
+                if (putOut) box.insertAdjacentHTML("beforeend", lead(`🕗 ${tr(L, "Put out", "出す時間")}: ${putOut}`, "info"));
+                box.insertAdjacentHTML("beforeend", lead(disc, "warn"));
+                const note_ = val(g, "note");
+                // 2. Official link
+                const url = safeUrl(attr(g, "trash_url"));
+                if (url) {
+                    const l = el("div", { style: "background:#eff6ff;border:1px solid #bfdbfe;padding:8px 10px;border-radius:6px;margin-bottom:10px;text-align:center" });
+                    l.append("🔗 ", linkEl(url, tr(L, "Official town page ↗", "自治体の公式ページ ↗")));
+                    box.append(l);
+                }
+                // 3. One block per waste type (skipped when the layer has no data for it)
+                let shown = 0;
+                SECTIONS.forEach(([color, icon, en, ja, daysF, rulesF]) => {
+                    const days = daysF ? val(g, daysF) : "";
+                    const rules = val(g, rulesF);
+                    if (!days && !rules) return;
+                    const sec = el("div", { style: "margin-bottom:8px" });
+                    sec.append(el("b", { textContent: `${icon} ${tr(L, en, ja)}`, style: `color:${color}` }));
+                    if (days) { sec.append(el("br"), el("b", { textContent: `🗓️ ${tr(L, "Days", "収集日")}: ` }), days); }
+                    if (rules) { sec.append(el("br"), el("span", { textContent: `ℹ️ ${rules}`, style: "color:#4b5563" })); }
+                    box.append(sec); shown++;
+                });
+                if (!shown) box.insertAdjacentHTML("beforeend", lead(tr(L, "No sorting rules could be confirmed yet. Please use the official page or call the town.", "分別ルールを確認できていません。公式ページまたは自治体にご確認ください。"), "plain"));
+                if (note_) box.insertAdjacentHTML("beforeend", lead(`📌 ${note_}`, "plain"));
+                // 4. Verification stamp
+                if (status) {
+                    // "checked" may be text ("2026-11-10") or a date field (epoch milliseconds)
+                    let checked = attr(g, "checked");
+                    if (/^\d{10,}$/.test(checked)) checked = new Date(Number(checked)).toISOString().slice(0, 10);
+                    box.insertAdjacentHTML("beforeend", lead(`${status[1]} ${tr(L, status[2], status[3])}${checked ? ` (${checked})` : ""}`, status[0]));
+                }
+                box.append(el("i", { textContent: tr(L, "Rules change. Always check the town's current calendar.", "ルールは変更されることがあります。最新のカレンダーをご確認ください。"), style: "font-size:11px;color:#666;display:block" }));
+                return box;
+            })],
             expressionInfos: [
                 E("muni", L === "JA"
                     ? `return ${NZ(TRASH_MUNI_FIELD)};`
-                    : `var m = ${NZ(TRASH_MUNI_FIELD, "")}; if (m == '') { m = ${NZ("municipali", "—")}; } else { m = ${MUNI_EN}; } return m;`),
-                E("disc", `return ${NZ("disclaimer" + s, tr(L,
-                    "Collection rules vary by area. Check your town's official calendar.",
-                    "収集ルールは地域により異なります。自治体の公式カレンダーをご確認ください。"))};`),
-                field("bd", "burnable_s"), field("br", "burnable_r"),
-                field("pd", "plastic_sc"), field("pr", "plastic_ru"),
-                field("rd", "recyclab_1"), field("rr", "recyclable"),
-                field("bw", "bulky_wast")
+                    : `var m = ${NZ(TRASH_MUNI_FIELD, "")}; if (m == '') { m = ${NZ("municipali", "—")}; } else { m = ${MUNI_EN}; } return m;`)
             ]
         };
     },
 
     municipal: (L) => ({
         title: `🏛️ ${X("name")}`,
-        content: body(
+        content: [...body(
+            lead((L === "EN" ? "Japanese name: " : "") + X("fname"), "info") +
             `<b>${tr(L, "What you can do here", "主な利用目的")}:</b><p style="margin:4px 0 8px">${X("desc")}</p>` +
-            row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L)
-        ),
+            row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L) + srcNote(L, 2022)
+        ), actions(L, "P05_004")],
         expressionInfos: [
+            E("fname", `return ${NZ("P05_003")};`),
             E("name", byCode("P05_002", [
-                ["1", tr(L, "Town / City Hall", "役場・市役所")],
-                ["2", tr(L, "Branch & Liaison Office", "支所・出張所")],
-                ["4", tr(L, "Public Community Center", "公立公民館")]
+                ["1", tr(L, "Town / City Hall (Yakuba / Shiyakusho)", "役場・市役所")],
+                ["2", tr(L, "Branch & Liaison Office (Shisho / Shucchojo)", "支所・出張所")],
+                ["4", tr(L, "Public Community Center (Kominkan)", "公立公民館")]
             ], tr(L, "Municipal Facility", "行政施設"))),
             E("desc", byCode("P05_002", [
                 ["1", tr(L,
@@ -231,23 +322,27 @@ const POPUPS = {
             `var raw = ${NZ("P18_001", "")}; var c = ${NZ("P18_003", "")}; var k = 'other'; ` +
             `if (Find('交番', raw) > -1 || c == '4') { k = 'koban'; } ` +
             `else if (Find('駐在所', raw) > -1 || c == '5') { k = 'chuzai'; } ` +
-            `else if (c == '1') { k = 'hq'; } else if (c == '3') { k = 'branch'; } ` +
+            `else if (c == '6' || Find('派出所', raw) > -1) { k = 'hashutsujo'; } ` +
+            `else if (c == '1') { k = 'hq'; } else if (c == '3') { k = 'branch'; } else if (c == '7') { k = 'school'; } else if (c == '8') { k = 'center'; } ` +
             `else if (Find('警察署', raw) > -1 || c == '2') { k = 'station'; } `;
         const pick = (pairs, dflt) => `${kind} return ${decodePairs("k", pairs, q(dflt))};`;
         return {
             title: `👮 ${X("title")}`,
-            content: body(
-                row(tr(L, "Name", "名称"), X("name")) +
+            content: [...body(
+                lead((L === "EN" ? "Japanese name: " : "") + X("name"), "info") +
                 `<b>${tr(L, "What you can do here", "主な利用目的")}:</b><p style="margin:4px 0 8px">${X("desc")}</p>` +
-                row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L)
-            ),
+                row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L) + srcNote(L, 2012)
+            ), actions(L, "P18_004")],
             expressionInfos: [
                 E("title", pick([
                     ["hq", tr(L, "Prefectural Police Headquarters", "北海道警察本部")],
                     ["station", tr(L, "Police Station", "警察署")],
                     ["branch", tr(L, "Police Sub-station", "分庁舎")],
                     ["koban", tr(L, "Police Box (Koban)", "交番")],
-                    ["chuzai", tr(L, "Residential Police Box (Chuzaisho)", "駐在所")]
+                    ["chuzai", tr(L, "Residential Police Box (Chuzaisho)", "駐在所")],
+                    ["hashutsujo", tr(L, "Police Box (Hashutsujo)", "派出所")],
+                    ["school", tr(L, "Police Academy", "警察学校")],
+                    ["center", tr(L, "Community Safety Center / Liaison Office", "地域安全センター・連絡所")]
                 ], tr(L, "Police Facility", "警察施設"))),
                 E("desc", pick([
                     ["koban", tr(L,
@@ -256,6 +351,12 @@ const POPUPS = {
                     ["chuzai", tr(L,
                         "Rural police box (Chuzaisho) where a resident officer lives and patrols. Go here for lost and found, community safety concerns or neighborhood emergencies.",
                         "地域密着型の駐在所です。防犯巡回、道案内、落とし物の届出、緊急時の初期対応を行います。")],
+                    ["hashutsujo", tr(L,
+                        "Neighborhood police box. Ask for directions, report lost or found items, or get immediate local help.",
+                        "地域の派出所です。道案内、落とし物の届出、緊急時の初期対応を行います。")],
+                    ["center", tr(L,
+                        "Community safety center or liaison office for crime prevention and local consultations.",
+                        "地域の防犯相談や連絡窓口となる施設です。")],
                     ["branch", tr(L,
                         "Regional police branch providing administrative services and local emergency response.",
                         "地域警察の分庁舎です。行政手続きや地域の安全窓口として機能しています。")],
@@ -276,9 +377,10 @@ const POPUPS = {
 
     post: (L) => ({
         title: `✉️ ${X("name")}`,
-        content: body(row(tr(L, "Type", "種別"), X("type")) + row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L)),
+        content: [...body(lead(X("type"), "plain") + (L === "EN" ? row("Japanese name", X("jname")) : "") + row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L) + srcNote(L, 2013)), actions(L, "P30_006")],
         expressionInfos: [
-            E("name", `return ${NZ("P30_005", tr(L, "Post Office", "郵便局"))};`),
+            E("name", L === "EN" ? `return ${q("Post Office")};` : `return ${NZ("P30_005", "郵便局")};`),
+            E("jname", `return ${NZ("P30_005", "郵便局")};`),
             E("type", byCode("P30_004", [
                 ["18004", tr(L, "Simple Post Office (簡易郵便局)", "簡易郵便局")],
                 ["18006", tr(L, "Direct-managed Post Office (直営郵便局)", "直営郵便局")]
@@ -289,75 +391,127 @@ const POPUPS = {
 
     schools: (L) => ({
         title: `🏫 ${X("name")}`,
-        content: body(row(tr(L, "Level", "校種"), X("type")) + row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L)),
+        content: [
+            custom((g) => {
+                const box = el("div");
+                if (attr(g, "P29_007") === "9") box.innerHTML = lead(tr(L, "⚠️ Listed as temporarily closed", "⚠️ 休校中"), "warn");
+                else box.hidden = true;
+                return box;
+            }),
+            ...body(lead(X("type"), "plain") + (L === "EN" ? row("Japanese name", X("jname")) : "")),
+            custom((g) => {
+                const remark = attr(g, "P29_009");
+                const box = el("div", { style: BLOCK });
+                if (remark) box.append(labeled(tr(L, "Campus / note", "校舎・備考"), document.createTextNode(remark)));
+                else box.hidden = true;
+                return box;
+            }),
+            ...body(row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L) + srcNote(L, 2023)),
+            actions(L, "P29_005")
+        ],
         expressionInfos: [
-            E("name", `return ${NZ("P29_004")};`),
+            E("name", L === "JA" ? `return ${NZ("P29_004")};` : `var e = ${NZ("name_en", "")}; if (e == '') { return ${NZ("P29_004")}; } return e;`),
             E("type", byCode("P29_003", [
                 ["16001", tr(L, "Elementary School (小学校)", "小学校")],
                 ["16002", tr(L, "Junior High School (中学校)", "中学校")],
+                ["16003", tr(L, "Secondary School (中等教育学校)", "中等教育学校")],
                 ["16004", tr(L, "High School (高等学校)", "高等学校")],
                 ["16005", tr(L, "College of Technology (高専)", "高等専門学校")],
+                ["16006", tr(L, "Junior College (短期大学)", "短期大学")],
                 ["16007", tr(L, "University (大学)", "大学")],
                 ["16011", tr(L, "Kindergarten (幼稚園)", "幼稚園")],
-                ["16012", tr(L, "Special Needs School (特別支援学校)", "特別支援学校")]
+                ["16012", tr(L, "Special Needs School (特別支援学校)", "特別支援学校")],
+                ["16013", tr(L, "Integrated Nursery & Kindergarten (認定こども園)", "幼保連携型認定こども園")],
+                ["16014", tr(L, "Compulsory Education School (義務教育学校)", "義務教育学校")],
+                ["16015", tr(L, "Miscellaneous School (各種学校)", "各種学校")],
+                ["16016", tr(L, "Vocational School (専修学校)", "専修学校")]
             ], tr(L, "Educational Facility", "教育施設"))),
+            E("jname", `return ${NZ("P29_004")};`),
             E("addr", `return ${NZ("P29_005")};`)
         ]
     }),
 
-    roadside: (L) => ({
-        title: `🚗 ${tr(L, "Michi-no-Eki", "道の駅")}: ${X("name")}`,
-        content: [...body(
-            row(tr(L, "Municipality", "市町村"), X("muni")) +
-            `<b>${tr(L, "Available amenities", "設備・サービス")}:</b><br>` +
-            `• 🏪 ${tr(L, "Shops", "売店")}: ${X("shop")}<br>` +
-            `• 🍱 ${tr(L, "Restaurant / café", "飲食")}: ${X("food")}<br>` +
-            `• ♨️ ${tr(L, "Hot spring", "温泉")}: ${X("onsen")}<br>` +
-            `• 🛜 ${tr(L, "Public Wi-Fi", "公衆Wi-Fi")}: ${X("wifi")}<br>` +
-            `• ⚡ ${tr(L, "EV charging", "EV充電")}: ${X("ev")}<br>` +
-            `• 🏧 ATM: ${X("atm")}`
-        ), custom((g) => {
-            const url = safeUrl(attr(g, "P35_007"));
-            const box = el("div", { style: `${BLOCK};margin-top:6px` });
-            if (url) box.append(labeled(tr(L, "Website", "公式サイト"), linkEl(url, tr(L, "Visit official page", "公式ページを開く"))));
-            else box.hidden = true;
-            return box;
-        })],
-        expressionInfos: [
-            E("name", `return ${NZ("P35_006")};`),
-            E("muni", `return ${NZ("P35_004")};`),
-            E("shop", yesNo(L, "P35_028")),
-            E("food", yesNo(L, "P35_013", "P35_014")),
-            E("onsen", yesNo(L, "P35_016")),
-            E("wifi", yesNo(L, "P35_023")),
-            E("ev", yesNo(L, "P35_022")),
-            E("atm", yesNo(L, "P35_011"))
-        ]
-    }),
+    roadside: (L) => {
+        // P35_0xx flags: 1 = available, 2 = not available.
+        const AMENITIES = [
+            ["🏪", "Shops", "売店", ["P35_028"]], ["🍱", "Restaurant", "レストラン", ["P35_013"]], ["☕", "Café / light meals", "軽食・喫茶", ["P35_014"]],
+            ["♨️", "Hot spring", "温泉", ["P35_016"]], ["🛏️", "Accommodation", "宿泊施設", ["P35_015"]], ["⛺", "Camping", "キャンプ場", ["P35_017"]],
+            ["🚿", "Shower", "シャワー", ["P35_024"]], ["🛜", "Public Wi-Fi", "公衆Wi-Fi", ["P35_023"]], ["⚡", "EV charging", "EV充電", ["P35_022"]],
+            ["⛽", "Gas station", "ガソリンスタンド", ["P35_021"]], ["🏧", "ATM", "ATM", ["P35_011"]], ["♿", "Accessible toilet", "身障者トイレ", ["P35_027"]],
+            ["🍼", "Baby bed", "ベビーベッド", ["P35_012"]], ["🌳", "Park", "公園", ["P35_018"]], ["🌄", "Observation deck", "展望台", ["P35_019"]],
+            ["🖼️", "Museum", "博物館・美術館", ["P35_020"]], ["🎨", "Experience activities", "体験施設", ["P35_025"]], ["🧭", "Tourist guide", "観光案内", ["P35_026"]]
+        ];
+        return {
+            title: `🚗 ${tr(L, "Michi-no-Eki", "道の駅")}: ${X("name")}`,
+            content: [
+                custom((g) => {
+                    const box = el("div", { style: `${BLOCK};margin-bottom:6px` });
+                    box.append(el("div", { style: "font-weight:600;margin-bottom:4px", textContent: tr(L, "Available here", "ご利用いただける設備") }));
+                    const have = AMENITIES.filter((a) => flagOn(g, ...a[3]));
+                    if (have.length) have.forEach((a) => box.append(chip(`${a[0]} ${tr(L, a[1], a[2])}`)));
+                    else box.append(el("div", { style: "color:#6b7280", textContent: tr(L, "No amenities recorded", "設備情報なし") }));
+                    return box;
+                }),
+                ...body((L === "EN" ? row("Japanese name", X("jname")) : "") + row(tr(L, "Municipality", "市町村"), X("muni")) + srcNote(L, 2018)),
+                custom((g) => {
+                    const url = ["P35_007", "P35_008", "P35_009", "P35_010"].map((f) => safeUrl(attr(g, f))).find(Boolean);
+                    const box = el("div", { style: BLOCK });
+                    if (url) box.append(labeled(tr(L, "Website", "公式サイト"), linkEl(url, tr(L, "Visit official page", "公式ページを開く"))));
+                    else box.hidden = true;
+                    return box;
+                }),
+                actions(L)
+            ],
+            expressionInfos: [
+                E("name", L === "JA" ? `return ${NZ("P35_006")};` : `var e = ${NZ("name_en", "")}; if (e == '') { return ${NZ("P35_006")}; } return e;`),
+                E("jname", `return ${NZ("P35_006")};`),
+                E("muni", L === "JA" ? `return ${NZ("P35_004")};`
+                    : `var m = ${NZ("P35_004", "")}; var i = Find('郡', m); if (i > -1) { m = Mid(m, i + 1, Count(m) - i - 1); } if (m == '') { return '—'; } return ${MUNI_EN};`)
+            ]
+        };
+    },
 
     shelters: (L) => {
-        const flag = (name, field) => E(name,
-            `if (on(${G(field)})) { return ${q(tr(L, "✅ Designated", "✅ 対応"))}; } return ${q(tr(L, "❌ Not designated", "❌ 非対応"))};`);
+        const HAZARDS = [
+            ["🏚️", "Earthquake", "地震", "P20_007"], ["🌊", "Tsunami", "津波", "P20_008"],
+            ["🌧️", "Flood / storm damage", "風水害", "P20_009"], ["🌋", "Volcanic activity", "火山現象", "P20_010"],
+            ["⚠️", "Other disasters", "その他", "P20_011"]
+        ];
         return {
             title: `🛡️ ${X("name")}`,
-            content: body(
-                row(tr(L, "Facility type", "施設種別"), X("type")) +
-                row(tr(L, "Address", "所在地"), X("addr")) +
-                row(tr(L, "Capacity", "想定収容人数"), X("cap")) +
-                HR + `<b>${tr(L, "Designated for", "指定災害種別")}:</b><br>` +
-                `• 🏚️ ${tr(L, "Earthquake", "地震")}: ${X("eq")}<br>` +
-                `• 🌊 ${tr(L, "Tsunami", "津波")}: ${X("tsu")}<br>` +
-                `• 🌧️ ${tr(L, "Flood / storm surge", "洪水・高潮")}: ${X("fld")}<br>` +
-                `• 🌋 ${tr(L, "Volcanic activity", "火山現象")}: ${X("vol")}<br>` +
-                `• ⛰️ ${tr(L, "Landslide / mudflow", "土砂災害")}: ${X("ls")}`
-            ),
+            content: [
+                custom((g) => {
+                    const box = el("div", { style: `${BLOCK};margin-bottom:6px` });
+                    const yes = HAZARDS.filter((h) => flagOn(g, h[3]));
+                    const no = HAZARDS.filter((h) => !flagOn(g, h[3]));
+                    box.append(el("div", { style: "font-weight:600;margin-bottom:4px", textContent: yes.length ? tr(L, "Designated shelter for", "指定されている災害") : tr(L, "Disaster designation", "災害の指定") }));
+                    if (yes.length) yes.forEach((h) => box.append(chip(`${h[0]} ${tr(L, h[1], h[2])}`)));
+                    else box.append(el("div", { style: "color:#6b7280", textContent: flagOn(g, "P20_012")
+                        ? tr(L, "No specific disaster type designated in the data", "災害種別の指定なし")
+                        : tr(L, "Hazard types not specified in the data", "指定災害種別の記載なし") }));
+                    if (yes.length && no.length) {
+                        box.append(el("div", { style: "font-size:12px;color:#6b7280", textContent:
+                            `${tr(L, "Not designated for", "対象外")}: ${no.map((h) => tr(L, h[1], h[2])).join(tr(L, ", ", "、"))}` }));
+                    }
+                    return box;
+                }),
+                ...body(
+                    (L === "EN" ? row("Japanese name", X("jname")) : "") +
+                    row(tr(L, "Facility type", "施設種別"), X("type")) +
+                    row(tr(L, "Capacity", "想定収容人数"), X("cap")) +
+                    row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L) +
+                    note(tr(L, "Designations come from 2012 national data. Confirm with your town's current hazard map (ハザードマップ).",
+                        "指定内容は2012年の国のデータに基づきます。最新情報はお住まいの自治体のハザードマップでご確認ください。"))
+                ),
+                actions(L, "P20_003")
+            ],
             expressionInfos: [
-                E("name", `return ${NZ("P20_002")};`),
-                E("type", `return ${NZ("P20_004")};`),
+                E("name", L === "EN" ? `return ${q("Emergency Shelter")};` : `return ${NZ("P20_002")};`),
+                E("jname", `return ${NZ("P20_002")};`),
+                E("type", L === "JA" ? `return ${NZ("P20_004")};`
+                    : `var j = ${NZ("P20_004", "")}; var e = ${NZ("types_en", "")}; if (e == '') { return j; } if (j == '') { return e; } return e + ' (' + Trim(Replace(j, '\u3000', '')) + ')';`),
                 E("addr", `return ${NZ("P20_003")};`),
-                E("cap", `var c = num(${G("P20_005")}); if (IsEmpty(c) || c <= 0) { return ${q(tr(L, "Unspecified", "未定・記載なし"))}; } return Text(c, '#,###') + ${q(tr(L, " persons", " 人"))};`),
-                flag("eq", "P20_007"), flag("tsu", "P20_008"), flag("fld", "P20_009"),
-                flag("vol", "P20_010"), flag("ls", "P20_011")
+                E("cap", `var c = num(${G("P20_005")}); if (IsEmpty(c) || c <= 0) { return ${q(tr(L, "Unspecified", "未定・記載なし"))}; } return Text(c, '#,###') + ${q(tr(L, " persons", " 人"))};`)
             ]
         };
     },
@@ -370,7 +524,7 @@ const POPUPS = {
             title: X("muni"),
             content: body(
                 row(tr(L, "Municipality", "自治体名"), X("muni")) +
-                row(tr(L, "Snow designation", "雪害指定区分"), X("cls")) +
+                lead(X("cls"), "info") +
                 note(X("clsDesc")) + HR +
                 `<b>${tr(L, "Climate averages", "気候平均値")}:</b>` +
                 `<ul style="margin:4px 0 0 18px;padding:0"><li>${tr(L, "Avg. minimum temperature", "平均最低気温")}: ${X("temp")}</li>` +
@@ -394,21 +548,24 @@ const POPUPS = {
     },
 
     railStations: (L) => ({
-        title: `🚉 ${L === "JA" ? "{N02_005}駅" : "{N02_005} Station"}`,
-        content: body(
-            row(tr(L, "Station", "駅名"), `{N02_005}${L === "JA" ? "駅" : ""}`) +
+        title: `🚉 ${X("stn")}`,
+        content: [...body(
+            lead(X("service"), "plain") +
+            (L === "EN" ? row("Japanese name", "{N02_005}駅") : "") +
             row(tr(L, "Line", "路線名"), X("line")) +
-            row(tr(L, "Operator", "運行会社"), X("operator")) +
-            row(tr(L, "Service type", "種別"), X("service"))
-        ),
+            row(tr(L, "Operator", "運行会社"), X("operator"))
+        ), actions(L)],
         expressionInfos: [
             E("line", L === "JA" ? `return ${NZ("N02_003")};` : `var l = ${NZ("N02_003", "")}; return ${decodePairs("l", LINE_PAIRS)};`),
             E("operator", L === "JA" ? `return ${NZ("N02_004")};` : `var o = ${NZ("N02_004", "")}; return ${decodePairs("o", OPERATOR_PAIRS)};`),
             E("service",
                 `var l = ${NZ("N02_003", "")}; var o = ${NZ("N02_004", "")}; ` +
                 `if (l == '北海道新幹線') { return ${q(tr(L, "🚅 High-speed Shinkansen", "🚅 新幹線"))}; } ` +
-                `if (o == '函館市企業局交通部') { return ${q(tr(L, "🚃 City tram", "🚃 市電"))}; } ` +
-                `return ${q(tr(L, "🚆 Local / regional train", "🚆 在来線・ローカル線"))};`)
+                `if (o == '函館市企業局交通部' || o == '函館市') { return ${q(tr(L, "🚃 City tram", "🚃 市電"))}; } ` +
+                `return ${q(tr(L, "🚆 Local / regional train", "🚆 在来線・ローカル線"))};`),
+            E("stn", L === "JA"
+                ? `return ${NZ("N02_005")} + '駅';`
+                : `var e = ${NZ("station_en", "")}; if (e == '') { e = ${NZ("N02_005")}; } return e + ' Station';`)
         ]
     }),
 
@@ -422,54 +579,217 @@ const POPUPS = {
     }),
 
     medical: (L) => {
-        // Longer department names first so "整形外科" is not clipped by "外科".
-        const DEPTS = [
-            ["小児歯科", "Pediatric Dentistry"], ["矯正歯科", "Orthodontics"], ["口腔外科", "Oral Surgery"],
-            ["整形外科", "Orthopedic Surgery"], ["脳神経外科", "Neurosurgery"], ["心臓血管外科", "Cardiovascular Surgery"],
-            ["形成外科", "Plastic Surgery"], ["消化器内科", "Gastroenterology"], ["循環器内科", "Cardiology"],
-            ["呼吸器内科", "Respiratory Medicine"], ["神経内科", "Neurology"], ["心療内科", "Psychosomatic Medicine"],
-            ["精神科", "Psychiatry"], ["小児科", "Pediatrics"], ["皮膚科", "Dermatology"], ["眼科", "Ophthalmology"],
-            ["耳鼻咽喉科", "ENT (Otolaryngology)"], ["産婦人科", "Obstetrics & Gynecology"], ["泌尿器科", "Urology"],
-            ["放射線科", "Radiology"], ["麻酔科", "Anesthesiology"], ["リハビリテーション科", "Rehabilitation"],
-            ["内科", "Internal Medicine"], ["外科", "Surgery"], ["歯科", "Dentistry"], ["、", ", "]
-        ];
+        // The source data mixes full names (内科), official abbreviations (内, 外, 整外, 耳い) and ";" separators,
+        // so each department is looked up on its own. Anything not listed stays in Japanese.
+        const DEPTS = {
+            "内": "Internal Medicine", "内科": "Internal Medicine", "外": "Surgery", "外科": "Surgery", "小": "Pediatrics", "小児科": "Pediatrics",
+            "小外": "Pediatric Surgery", "小児外科": "Pediatric Surgery", "整外": "Orthopedic Surgery", "整形外科": "Orthopedic Surgery",
+            "脳外": "Neurosurgery", "脳神経外科": "Neurosurgery", "心外": "Cardiac Surgery", "心臓血管外科": "Cardiovascular Surgery",
+            "呼外": "Respiratory Surgery", "呼吸器外科": "Respiratory Surgery", "形外": "Plastic Surgery", "形成外科": "Plastic Surgery",
+            "皮": "Dermatology", "皮膚科": "Dermatology", "小児皮膚科": "Pediatric Dermatology", "ひ": "Urology", "泌尿器科": "Urology",
+            "産婦": "Obstetrics & Gynecology", "産婦人科": "Obstetrics & Gynecology", "産科": "Obstetrics", "婦人科": "Gynecology",
+            "眼": "Ophthalmology", "眼科": "Ophthalmology", "耳い": "ENT (Otolaryngology)", "耳鼻咽喉科": "ENT (Otolaryngology)",
+            "リハ": "Rehabilitation", "リハビリテーション科": "Rehabilitation", "放": "Radiology", "放射線科": "Radiology",
+            "放射線治療科": "Radiation Oncology", "放射線診断科": "Diagnostic Radiology", "病理": "Pathology", "病理診断科": "Pathology",
+            "麻": "Anesthesiology", "麻酔科": "Anesthesiology", "精": "Psychiatry", "精神科": "Psychiatry", "児童精神科": "Child Psychiatry",
+            "老年精神科": "Geriatric Psychiatry", "神": "Neurology", "神内": "Neurology", "神経内科": "Neurology", "心療内科": "Psychosomatic Medicine",
+            "呼": "Respiratory Medicine", "呼内": "Respiratory Medicine", "呼吸器内科": "Respiratory Medicine",
+            "循": "Cardiology", "循環器内科": "Cardiology", "消": "Gastroenterology", "胃": "Gastroenterology", "消化器内科": "Gastroenterology",
+            "消化器外科": "Gastroenterological Surgery", "内視鏡内科": "Endoscopy", "大腸外科": "Colorectal Surgery",
+            "肛門内科": "Proctology", "肛門外科": "Anorectal Surgery", "乳腺外科": "Breast Surgery", "腫瘍外科": "Surgical Oncology",
+            "腎臓内科": "Nephrology", "血液内科": "Hematology", "血液腫瘍内科": "Hematology & Oncology", "腫瘍内科": "Medical Oncology",
+            "緩和ケア内科": "Palliative Care", "糖尿病内科": "Diabetes Medicine", "糖尿病・内分泌内科": "Diabetes & Endocrinology",
+            "救急科": "Emergency Medicine", "歯科": "Dentistry", "歯外": "Oral Surgery", "口腔外科": "Oral Surgery", "歯科口腔外科": "Oral Surgery",
+            "小児歯科": "Pediatric Dentistry", "矯正歯科": "Orthodontics",
+            "歯": "Dentistry", "小歯": "Pediatric Dentistry", "矯歯": "Orthodontics", "リウ": "Rheumatology", "アレ": "Allergy",
+            "心内": "Psychosomatic Medicine", "婦": "Gynecology", "産": "Obstetrics", "こう": "Proctology", "脳内": "Neurology",
+            "糖尿病・代謝内科": "Diabetes & Metabolism", "内分泌内科": "Endocrinology", "内分泌・代謝内科": "Endocrinology & Metabolism",
+            "人工透析内科": "Dialysis", "透析": "Dialysis", "泌尿器科（人工透析）": "Urology (Dialysis)", "漢方内科": "Kampo (Herbal) Medicine", "漢方外科": "Kampo (Herbal) Medicine",
+            "ペインクリニック内科": "Pain Clinic", "美容皮膚科": "Cosmetic Dermatology", "美容皮ふ科": "Cosmetic Dermatology", "美外": "Cosmetic Surgery",
+            "老年内科": "Geriatrics", "老年科": "Geriatrics", "胸外": "Thoracic Surgery", "呼吸器・乳腺外科": "Respiratory & Breast Surgery",
+            "総合診療内科": "General Medicine", "総合診療科": "General Medicine", "神経精神科": "Neuropsychiatry", "理学療法科": "Physical Therapy",
+            "児童思春期精神科": "Child & Adolescent Psychiatry", "その他": "Other departments", "消化器内科（内視鏡）": "Gastroenterology (Endoscopy)"
+        };
+        // Language codes used by the prefecture's foreign-language support list
+        const LANGS = { EN: ["English", "英語"], ZH: ["Chinese", "中国語"], KO: ["Korean", "韓国語"], RU: ["Russian", "ロシア語"], FR: ["French", "フランス語"], DE: ["German", "ドイツ語"], ES: ["Spanish", "スペイン語"], TH: ["Thai", "タイ語"], VI: ["Vietnamese", "ベトナム語"], TL: ["Tagalog", "タガログ語"] };
+        const langName = (c) => (LANGS[c] ? tr(L, ...LANGS[c]) : c);
+        const deptName = (d) => (L === "JA" ? d : DEPTS[d] || d);
+        const deptDict = `{${Object.entries(DEPTS).map(([a, b]) => `${q(a)}: ${q(b)}`).join(", ")}}`;
         const deptBody =
-            `var s = ${NZ("診療科目", "")}; if (s == '') { return ${q(tr(L, "Unspecified", "記載なし"))}; } ` +
-            (L === "JA" ? "return s;" : DEPTS.map(([a, b]) => `s = Replace(s, ${q(a)}, ${q(b)});`).join(" ") + " return s;");
+            `var s = ${NZ("診療科目", "")}; if (s == '' && ${NZ("facility_type", "")} == 'Pharmacy') { return ${q(tr(L, "Prescription dispensing", "調剤"))}; } if (s == '') { return ${q(tr(L, "Unspecified", "記載なし"))}; } ` +
+            (L === "JA"
+                ? "return Replace(s, ';', '、');"
+                : `var D = ${deptDict}; var parts = Split(s, ';'); var out = []; ` +
+                  "for (var i in parts) { var t = Trim(parts[i]); if (t == '') { continue; } var v = t; if (HasKey(D, t)) { v = D[t]; } if (!Includes(out, v)) { Push(out, v); } } " +
+                  "return Concatenate(out, ', ');");
         return {
             title: X("title"),
-            content: [...body(
-                row(tr(L, "Facility type", "施設種別"), X("ftype")) +
-                row(tr(L, "Address", "所在地"), X("addr")) +
-                (L === "EN" ? note(`Romaji: ${X("romaji")}`) : "") +
-                row(tr(L, "Departments", "診療科目"), X("depts")) +
-                row(tr(L, "Beds", "病床数"), X("beds")) + HR +
-                row(tr(L, "Support status", "対応状況"), X("badge"))
-            ), custom((g) => {
+            content: [custom((g) => {
+                const T = { Hospital: ["🏥", "Hospital", "病院"], Clinic: ["🩺", "Clinic", "診療所"], Dental: ["🦷", "Dental clinic", "歯科"], Pharmacy: ["💊", "Pharmacy", "薬局"] };
+                const t = T[attr(g, "facility_type")];
+                return el("div", { style: "font-size:16px;font-weight:700;margin:0 0 6px", textContent: t ? `${t[0]} ${tr(L, t[1], t[2])}` : "" });
+            }), custom((g) => {
+                const multi = flagOn(g, "multilingual");
+                const box = el("div");
+                if (!multi) {
+                    box.innerHTML = lead(tr(L, "Standard local facility — Japanese is the primary language", "一般地域医療機関（日本語対応が中心）"), "plain");
+                    return box;
+                }
+                // "内科：EN、RU; 歯科：EN" -> groups of departments by language set
+                const groups = new Map();
+                const all = new Set();
+                for (const part of attr(g, "departments_languages").split(/[;；]/)) {
+                    const [dept, langs = ""] = part.split(/[：:]/).map((x) => x.trim());
+                    const codes = langs.match(/[A-Z]{2}/g) || [];
+                    codes.forEach((c) => all.add(c));
+                    if (!dept || !codes.length) continue;
+                    const key = codes.join(", ");
+                    groups.set(key, [...(groups.get(key) || []), deptName(dept)]);
+                }
+                (attr(g, "other_langs").match(/[A-Z]{2}/g) || []).forEach((c) => all.add(c));
+                const names = [...all].sort((a, b) => (a === "EN" ? -1 : b === "EN" ? 1 : 0)).map(langName).join(tr(L, ", ", "、"));
+                box.innerHTML = lead(`🌟 ${tr(L, "Foreign-language support", "外国語対応")}${names ? `: <b>${names}</b>` : ""}`, "good");
+                const chips = el("div", { style: "margin:2px 0 4px" });
+                if (flagOn(g, "interpreter_onsite")) chips.append(chip(tr(L, "On-site interpreter", "医療通訳者あり")));
+                if (flagOn(g, "interpreter_remote")) chips.append(chip(tr(L, "Remote interpreting", "遠隔通訳あり")));
+                if (chips.childNodes.length) box.append(chips);
+                for (const [key, depts] of groups) {
+                    box.append(el("div", { style: "font-size:12.5px;margin:2px 0", textContent: `${key.split(", ").map(langName).join(tr(L, ", ", "、"))} — ${depts.join(tr(L, ", ", "、"))}` }));
+                }
+                box.append(el("div", { style: "font-size:11px;color:#666;margin-top:4px", textContent: tr(L, "Language availability can vary by time and staff. Call ahead if you can.", "対応可能な言語は時間帯やスタッフにより異なります。事前にご確認ください。") }));
+                return box;
+            }), custom((g) => {
                 const box = el("div", { style: BLOCK });
                 const phone = attr(g, "電話番号");
                 if (phone) box.append(labeled(tr(L, "Phone", "電話番号"), el("a", { href: `tel:${phone.replace(/[^\d+]/g, "")}`, textContent: phone })));
                 const hours = attr(g, "reception_hours");
-                if (hours) box.append(labeled(tr(L, "Reception hours", "受付時間"), document.createTextNode(hours)));
-                const langs = attr(g, "departments_languages");
-                if (langs) box.append(labeled(tr(L, "Supported languages", "対応言語"), document.createTextNode(langs)));
+                if (hours) box.append(labeled(tr(L, "Reception hours", "受付時間"), document.createTextNode(L === "EN" ? translateHours(hours) : hours)));
                 const url = safeUrl(attr(g, "website"));
                 if (url) box.append(labeled(tr(L, "Website", "公式サイト"), linkEl(url, tr(L, "Official website", "公式サイト"))));
+                // Service badges: only shown when the list marks them
+                const badges = el("div", { style: "margin-top:6px" });
+                if (flagOn(g, "open_24h")) badges.append(chip(tr(L, "Open 24 h / 365 days", "24時間365日対応")));
+                if (flagOn(g, "accepts_cards")) badges.append(chip(tr(L, "Credit cards accepted", "クレジットカード可")));
+                const ER = { "初期救急医療機関": ["Primary emergency care (first aid)", "初期救急医療機関"], "第二次救急医療機関": ["Secondary emergency hospital", "第二次救急医療機関"], "第三次救急医療機関": ["Tertiary emergency center", "第三次救急医療機関"] };
+                const er = attr(g, "emergency_level");
+                if (er) badges.append(chip(ER[er] ? tr(L, ...ER[er]) : er));
+                if (badges.childNodes.length) box.append(badges);
                 box.hidden = !box.childNodes.length;
                 return box;
-            })],
+            }), ...body(
+                HR +
+                row(tr(L, "Address", "所在地"), X("addr")) +
+                (L === "EN" ? row("Japanese name", X("jaName")) : "") +
+                row(X("deptLabel"), X("depts"))
+            ), custom(() => el("div", { style: "font-size:11px;color:#666;margin-top:8px", textContent: tr(L, "Source: Hokkaido Government hospital list (R8.4.1) and foreign-language support list. Confirm details with the facility.", "出典：北海道「病院名簿（R8.4.1）」「外国語対応可能医療機関一覧」。詳細は各医療機関にご確認ください。") })),
+actions(L, "所在地")],
             expressionInfos: [
                 E("title", L === "JA"
                     ? `return nz(${G("名称")}, ${NZ("name_en")});`
                     : `var a = ${NZ("name_en", "")}; if (a != '') { return a; } var b = ${NZ("name_romaji", "")}; if (b != '') { return b; } return ${NZ("名称")};`),
-                E("ftype", L === "JA"
-                    ? `var f = ${NZ("facility_type", "")}; return ${decodePairs("f", [["Hospital", "病院"], ["Clinic", "診療所"], ["Dental", "歯科"], ["Pharmacy", "薬局"]], "f")};`
-                    : `return ${NZ("facility_type")};`),
                 E("addr", `var a = ${NZ("所在地")}; var z = ${NZ("郵便番号", "")}; if (z == '') { return a; } return ${L === "JA" ? "'〒' + z + ' ' + a" : "a + ' (' + z + ')'"};`),
-                E("romaji", `return ${NZ("address_romaji")};`),
-                E("depts", deptBody),
-                E("beds", `var b = num(${G("病床数")}); if (IsEmpty(b) || b <= 0) { return '—'; } return Text(b) + '${tr(L, "", " 床")}';`),
-                E("badge", `if (on(${G("is_multilingual")})) { return ${q(tr(L, "🌟 Multilingual (English support available)", "🌟 多言語対応・外国語サポートあり"))}; } return ${q(tr(L, "Standard local facility — Japanese is the primary language.", "一般地域医療機関（日本語対応が中心）"))};`)
+                E("jaName", `return ${NZ("名称")};`),
+                E("deptLabel", `if (${NZ("facility_type", "")} == 'Pharmacy') { return ${q(tr(L, "Services", "業務"))}; } return ${q(tr(L, "Departments", "診療科目"))};`),
+                E("depts", deptBody)
+            ]
+        };
+    },
+
+    bus: (L) => {
+        // P11: one row per stop; up to 35 routes in P11_003_01..35 with matching type codes in P11_004_01..35.
+        const BUS_TYPES = { "1": ["Private route bus", "路線バス（民間）"], "2": ["Public route bus", "路線バス（公営）"], "3": ["Community bus", "コミュニティバス"], "5": ["Other bus service", "その他のバス"] };
+        const OPERATORS = [["函館バス", "Hakodate Bus"], ["道南バス", "Donan Bus"], ["ジェイ・アール北海道バス", "JR Hokkaido Bus"], ["函館市企業局交通部", "Hakodate City Transportation Bureau"]];
+        const operatorName = (op) => {
+            if (L === "JA" || !op) return op;
+            // P11 appends the company form, e.g. "函館バス（株）"
+            const clean = op.replace(/[（(]株[）)]|株式会社|\s/g, "");
+            const known = OPERATORS.find((o) => o[0] === clean);
+            if (known) return known[1];
+            const muni = municipalities.find((m) => m.ja === clean);
+            return muni ? `${muni.en} (community bus)` : op;
+        };
+        return {
+            title: `🚌 ${X("name")}`,
+            content: [
+                custom((g) => {
+                    const box = el("div", { style: BLOCK });
+                    const routes = [];
+                    for (let i = 1; i <= 35; i++) {
+                        const k = String(i).padStart(2, "0");
+                        // One cell can hold several routes ("410系統,411系統") with matching type codes ("1,1").
+                        const split = (v) => v.split(/[,，、]/).map((x) => x.trim());
+                        const names = split(attr(g, `P11_003_${k}`));
+                        const types = split(attr(g, `P11_004_${k}`));
+                        names.forEach((name, j) => {
+                            if (name && !routes.some((r) => r.name === name)) routes.push({ name, type: types[j] || types[0] || "" });
+                        });
+                    }
+                    const headline = routes.length
+                        ? tr(L, `${routes.length} bus route${routes.length > 1 ? "s" : ""} stop here`, `${routes.length}系統が停車します`)
+                        : tr(L, "No route information for this stop", "このバス停の系統情報はありません");
+                    box.append(el("div", { innerHTML: lead(`🚌 ${headline}`, routes.length ? "info" : "plain") }));
+                    const shown = routes.slice(0, 12);
+                    shown.forEach((r) => box.append(chip(r.name, true)));
+                    if (routes.length > shown.length) box.append(chip(`+${routes.length - shown.length}`, true));
+                    const op = attr(g, "P11_002");
+                    if (op) box.append(labeled(tr(L, "Operator", "運行会社"), document.createTextNode(operatorName(op))));
+                    const types = [...new Set(routes.map((r) => r.type).filter((c) => BUS_TYPES[c]))];
+                    if (types.length) box.append(labeled(tr(L, "Service type", "種別"), document.createTextNode(types.map((c) => tr(L, ...BUS_TYPES[c])).join(tr(L, ", ", "、")))));
+                    const remark = attr(g, "P11_005");
+                    if (remark) box.append(labeled(tr(L, "Remarks", "備考"), document.createTextNode(remark)));
+                    return box;
+                }),
+                ...body((L === "EN" ? row("Stop name (Japanese)", X("jname")) : "") + note(tr(L, "Stop and route names are shown in Japanese. Check the operator's timetable for departure times.", "時刻表は各事業者の情報をご確認ください。")) + srcNote(L, 2022)),
+                actions(L)
+            ],
+            expressionInfos: [
+                E("name", L === "EN" ? `return ${q("Bus Stop")};` : `return ${NZ("P11_001", "バス停")};`),
+                E("jname", `return ${NZ("P11_001", "—")};`)
+            ]
+        };
+    },
+
+    gas: (L) => ({
+        title: `⛽ ${tr(L, "Gas Station", "ガソリンスタンド")}`,
+        content: [...body(
+            lead(tr(L, "⏰ Opening hours are not in the data. Check before a long drive, especially in winter and in rural areas.",
+                "⏰ 営業時間はデータに含まれていません。冬季や郊外への長距離移動の前にご確認ください。"), "warn") +
+            row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L) +
+            srcNote(L, 2010)
+        ), actions(L, "P07_002")],
+        expressionInfos: [
+            E("addr", `return ${NZ("P07_002")};`)
+        ]
+    }),
+
+    wildlife: (L) => {
+        // A15: P-code order follows the MLIT spec (name, prefecture, designating body, protection type, designated, released).
+        const TYPES = {
+            "1": [tr(L, "Wildlife Protection Area", "鳥獣保護区"), tr(L, "Hunting is prohibited here.", "この区域では狩猟が禁止されています。")],
+            "2": [tr(L, "Special Protection Zone", "特別保護区域"), tr(L, "Hunting is prohibited, and building, tree-cutting and similar development need permission.", "狩猟が禁止され、建築・伐採などの開発行為には許可が必要です。")],
+            "3": [tr(L, "Closed Hunting Area", "休猟区"), tr(L, "Hunting is temporarily suspended here so wildlife populations can recover.", "個体数の回復のため、狩猟が一時的に禁止されています。")]
+        };
+        const BODIES = { "1": tr(L, "Ministry of the Environment", "環境省"), "2": tr(L, "Prefectural government (Hokkaido)", "都道府県（北海道）") };
+        return {
+            title: `🦌 ${X("name")}`,
+            content: [
+                custom((g) => {
+                    const box = el("div", { style: BLOCK });
+                    const type = TYPES[attr(g, "A15_004")];
+                    box.append(el("div", { innerHTML: lead(type ? `${type[0]}<br><span style="font-weight:500;font-size:13px">${type[1]}</span>` : tr(L, "Wildlife protection area", "鳥獣保護区等"), type ? "good" : "plain") }));
+                    const body_ = BODIES[attr(g, "A15_003")];
+                    if (body_) box.append(labeled(tr(L, "Designated by", "指定機関"), document.createTextNode(body_)));
+                    const from = attr(g, "A15_005"), to = attr(g, "A15_006");
+                    if (from) box.append(labeled(tr(L, "Designated on", "指定日"), document.createTextNode(from)));
+                    if (to) box.append(labeled(tr(L, "Ends / released on", "解除日・終期"), document.createTextNode(to)));
+                    return box;
+                }),
+                ...body((L === "EN" ? row("Area name (Japanese)", X("jname")) : "") + note(tr(L, "Area names are shown in Japanese. Hunting rules apply to hunters only, but stay on marked trails and keep a distance from wildlife.",
+                    "区域名は日本語表記です。狩猟規制は狩猟者が対象ですが、野生動物には近づかず、遊歩道を外れないようご注意ください。")))
+            ],
+            expressionInfos: [
+                E("name", L === "EN" ? `return ${q("Wildlife Protection Area")};` : `return ${NZ("A15_001", "鳥獣保護区")};`),
+                E("jname", `return ${NZ("A15_001", "—")};`)
             ]
         };
     },
@@ -484,20 +804,53 @@ const POPUPS = {
 
     ski: (L) => {
         const loc = (base) => (L === "JA" ? `nz(${G(base + "_ja")}, ${NZ(base)})` : NZ(base));
+        const SKI_STATUS = {
+            "Verified": ["good", "✅", "Checked against online sources", "オンライン情報で確認済み"],
+            "Partly verified": ["info", "🟡", "Partly checked. Confirm hours and conditions locally", "一部のみ確認済み。営業時間・状況は現地情報をご確認ください"],
+            "Needs confirmation": ["warn", "⚠️", "Not confirmed. Call before you go; it may not be operating", "未確認です。営業していない可能性があるため事前にお問い合わせください"]
+        };
         return {
             title: `⛷️ ${X("name")}`,
-            content: body(
-                row(tr(L, "Subprefecture", "振興局"), X("sub")) +
+            content: [...body(
+                lead(X("feat"), "info") +
+                (L === "EN" ? row("Japanese name", X("nameJa")) : "") +
                 row(tr(L, "Municipality", "自治体"), X("muni")) +
-                row(tr(L, "Key features", "特徴"), X("feat")) +
-                row(tr(L, "Lifts & facilities", "リフト・設備"), X("lifts"))
-            ),
+                row(tr(L, "Subprefecture", "振興局"), X("sub")) +
+                row(tr(L, "Lifts & facilities", "リフト・設備"), X("lifts")) +
+                row(tr(L, "Lift fee", "リフト料金"), X("cost")) +
+                row(tr(L, "Season & hours", "シーズン・営業時間"), X("season"))
+            ), custom((g) => {
+                const box = el("div", { style: `${BLOCK};margin-top:6px` });
+                const phone = attr(g, "phone");
+                if (phone) {
+                    const d = el("div");
+                    d.append(el("b", { textContent: `${tr(L, "Phone (Japanese)", "電話")}: ` }), el("a", { href: `tel:${phone}`, textContent: phone }));
+                    box.append(d);
+                }
+                const url = safeUrl(attr(g, "source_url"));
+                if (url) { const d = el("div"); d.append("🔗 ", linkEl(url, tr(L, "Source ↗", "情報元 ↗"))); box.append(d); }
+                const st = SKI_STATUS[attr(g, "status")];
+                if (st) {
+                    // GeoJSON date strings are converted to epoch milliseconds by the layer
+                    let checked = attr(g, "checked");
+                    if (/^\d{10,}$/.test(checked)) checked = new Date(Number(checked)).toISOString().slice(0, 10);
+                    box.insertAdjacentHTML("beforeend", lead(`${st[1]} ${tr(L, st[2], st[3])}${checked ? ` (${checked})` : ""}`, st[0]));
+                }
+                if (/^UNVERIFIED/i.test(attr(g, "coord_status"))) {
+                    box.append(el("i", { textContent: tr(L, "📍 Map position is approximate.", "📍 地図上の位置は目安です。"), style: "font-size:11px;color:#666;display:block" }));
+                }
+                box.hidden = !box.childNodes.length;
+                return box;
+            }), actions(L, "address_ja")],
             expressionInfos: [
                 E("name", L === "JA" ? `return nz(${G("name_ja")}, ${NZ("name_en")});` : `return nz(${G("name_en")}, ${NZ("name_ja")});`),
+                E("nameJa", `return ${NZ("name_ja")};`),
                 E("sub", `return ${loc("subprefecture")};`),
                 E("muni", `return ${loc("municipality")};`),
                 E("feat", `return ${loc("key_features")};`),
-                E("lifts", `return ${loc("lifts")};`)
+                E("lifts", `return ${loc("lifts")};`),
+                E("cost", `return ${loc("cost")};`),
+                E("season", `return ${loc("season")};`)
             ]
         };
     },
@@ -514,7 +867,7 @@ const POPUPS = {
             ["just bring yourself", "Just yourself", "手ぶらでOK"], ["unknown", "Unknown at this time", "未定"]
         ];
         const bringBody =
-            `var raw = ${NZ("are_participants_expected_to_br", "")}; if (raw == '') { return '—'; } var l = Lower(raw); var out = ''; ` +
+            `var raw = ${NZ("are_participants_expected_to_br", "")}; if (raw == '') { return '—'; } var l = Lower(Replace(raw, '_', ' ')); var out = ''; ` +
             BRING.map(([k, en, ja]) => `if (Find(${q(k)}, l) > -1) { if (out != '') { out += ', '; } out += ${q(tr(L, en, ja))}; }`).join(" ") +
             ` if (out == '') { return raw; } return out;`;
         const choice = (field, rules, unknown) =>
@@ -524,20 +877,34 @@ const POPUPS = {
         return {
             title: `🎉 ${X("type")}`,
             content: body(
-                row(`📅 ${tr(L, "Date / time", "開催日時")}`, X("date")) +
-                row(tr(L, "Overnight stay", "宿泊"), X("overnight")) +
+                lead(`📅 ${X("date")}<br><span style="font-weight:500;font-size:13px">${X("when")} · 🌙 ${tr(L, "Overnight", "宿泊")}: ${X("overnight")}</span>`, "good") +
                 row(tr(L, "What to bring", "持ち物"), X("bring")) +
                 row(tr(L, "Carpooling", "相乗り"), X("carpool")) +
                 row(`👤 ${tr(L, "Contact", "連絡先")}`, X("contact")) + HR +
                 `<b>📝 ${tr(L, "Additional information", "追加情報")}:</b><p style="margin:4px 0">${X("info")}</p>` +
-                note(tr(L, "Submitted via the ForeignHokkaido community survey", "コミュニティ投稿フォームより"))
+                note(tr(L, "Submitted via the ForeignHokkaido community survey. Free-text details are shown as the submitter wrote them.", "コミュニティ投稿フォームより。自由記述は投稿者の入力どおりに表示されます。"))
             ),
             expressionInfos: [
-                E("type", `var c = ${NZ("what_type_of_event_is_this", "")}; var o = ${NZ("what_type_of_event_is_thi_other", "")}; ` +
-                    `if (c == '' || (Lower(c) == 'other' && o != '')) { c = o; } if (c == '') { return ${q(tr(L, "Community event", "地域のイベント"))}; } ` +
-                    (L === "JA" ? `return ${decodePairs("c", [["Holiday Party", "ホリデーパーティー"], ["Weekend Meetup", "週末の集まり"], ["Game Night", "ゲームナイト"], ["Other", "その他"]])};` : "return c;")),
+                // Keyword match (Survey123 can truncate stored codes). "Other" shows the person's own text as written.
+                E("type", `var c = ${NZ("what_type_of_event_is_this", "")}; var o = ${NZ("what_type_of_event_is_thi_other", "")}; var l = Lower(c); ` +
+                    `if (c == '') { if (o != '') { return o; } return ${q(tr(L, "Community event", "地域のイベント"))}; } ` +
+                    `if (Find('other', l) == 0) { if (o != '') { return o; } return ${q(tr(L, "Other event", "その他のイベント"))}; } ` +
+                    [
+                        ["holiday", "Holiday Party", "ホリデーパーティー"],
+                        ["weekend", "Weekend Meetup", "週末の集まり"],
+                        ["game", "Game Night", "ゲームナイト"],
+                        ["movie", "Movie Night", "映画の夜"],
+                        ["multi", "Multi-day Adventure", "複数日のアドベンチャー"],
+                        ["english", "English Language Event", "英語イベント"],
+                        ["japanese", "Japanese Language Event", "日本語イベント"],
+                        ["town", "Town Festival / Event", "町のお祭り・イベント"],
+                        ["festival", "Town Festival / Event", "町のお祭り・イベント"]
+                    ].map(([k, en, ja]) => `if (Find(${q(k)}, l) > -1) { return ${q(tr(L, en, ja))}; }`).join(" ") +
+                    ` return c;`),
                 E("date", `var d = ${G("date_and_time")}; if (IsEmpty(d)) { return '—'; } if (TypeOf(d) == 'Number') { d = Date(d); } ` +
                     `if (TypeOf(d) == 'Date') { return Text(d, '${tr(L, "MMM D, YYYY h:mm A", "YYYY/MM/DD HH:mm")}'); } return Text(d);`),
+                E("when", `var d = ${G("date_and_time")}; if (IsEmpty(d)) { return ''; } if (TypeOf(d) == 'Number') { d = Date(d); } ` +
+                    `if (TypeOf(d) == 'Date') { if (d < Now()) { return ${q(tr(L, "⌛ Already took place", "⌛ 開催済み"))}; } return ${q(tr(L, "⏳ Upcoming", "⏳ 開催予定"))}; } return '';`),
                 E("overnight", choice("is_an_overnight_stay_expected", [
                     ["accomodation will be", "Yes — accommodation provided (see additional information)", "あり（宿泊先あり・詳細は追加情報）"],
                     ["arrange your ow", "Yes — arrange your own accommodation", "あり（宿泊先は各自で手配）"],
@@ -557,9 +924,9 @@ const POPUPS = {
     localInterests: (L) => ({
         title: `📍 ${X("type")}`,
         content: body(
-            row(tr(L, "Recommendation", "おすすめ度"), X("rating")) + HR +
+            lead(`${tr(L, "Recommendation", "おすすめ度")}: ${X("rating")}`, "good") +
             `<b>📝 ${tr(L, "Additional information", "追加情報")}:</b><p style="margin:4px 0">${X("info")}</p>` +
-            note(tr(L, "Submitted via the ForeignHokkaido community survey", "コミュニティ投稿フォームより"))
+            note(tr(L, "Submitted via the ForeignHokkaido community survey. Free-text details are shown as the submitter wrote them.", "コミュニティ投稿フォームより。自由記述は投稿者の入力どおりに表示されます。"))
         ),
         expressionInfos: [
             E("type", `var c = ${NZ("what_type_of_interest_are_you_a", "")}; var o = ${NZ("what_type_of_interest_are_other", "")}; ` +
@@ -580,9 +947,10 @@ function hazardPopup(L, icon, notice) {
     return {
         title: X("title"),
         content: body(
+            lead(`${icon} ${notice}`, "warn") +
             row(`📍 ${tr(L, "Location", "場所")}`, X("loc")) +
-            row(`🆔 ${tr(L, "Site ID", "箇所番号")}`, X("id")) + HR +
-            `<b>${icon} ${tr(L, "Safety notice", "注意")}:</b> ${notice}<br>` +
+            row(`🆔 ${tr(L, "Site ID", "箇所番号")}`, X("id")) +
+            (L === "EN" ? note("Place names are shown in Japanese.") : "") +
             `<small style="color:gray;display:block;margin-top:6px">${tr(L, "Source", "出典")}: ${X("src")}</small>`
         ),
         expressionInfos: [
@@ -601,11 +969,14 @@ function hazardPopup(L, icon, notice) {
 const LINE_PAIRS = [
     ["北海道新幹線", "Hokkaido Shinkansen"], ["道南いさりび鉄道線", "Donan Isaribi Railway Line"],
     ["函館本線", "Hakodate Main Line"], ["海峡線", "Kaikyo Line"], ["江差線", "Esashi Line"],
-    ["室蘭本線", "Muroran Main Line"], ["函館市電", "Hakodate Tram"]
+    ["室蘭本線", "Muroran Main Line"], ["函館市電", "Hakodate Tram"],
+    ["室蘭線", "Muroran Main Line"], ["函館線", "Hakodate Main Line"], ["大森線", "Omori Line (tram)"], ["湯の川線", "Yunokawa Line (tram)"],
+    ["宝来・谷地頭線", "Horai-Yachigashira Line (tram)"], ["本線", "Main Line (tram)"]
 ];
 const OPERATOR_PAIRS = [
     ["北海道旅客鉄道", "JR Hokkaido"], ["道南いさりび鉄道", "Donan Isaribi Railway"],
-    ["函館市企業局交通部", "Hakodate City Transportation Bureau (tram)"]
+    ["函館市企業局交通部", "Hakodate City Transportation Bureau (tram)"],
+    ["函館市", "Hakodate City Transportation Bureau (tram)"]
 ];
 
 /* ==========================================================================
@@ -644,7 +1015,7 @@ const HEART = "M 0 -4 C -2 -10 -12 -8 -10 0 C -9 4 -3 8 0 12 C 3 8 9 4 10 0 C 12
 
 const RENDERERS = {
     // --- polygons ---
-    subprefecture: single(fill(C.dark, 0, C.dark, 1.5)),
+    subprefecture: single(fill(C.dark, 0, C.dark, 1.75)),
     municipality: single({ type: "simple-fill", color: [0, 0, 0, 0.03], outline: { color: [90, 90, 90, 0.85], width: 1, style: "dash" } }),
     trash: single(fill(C.sky, 0.22, C.blue, 2.6)),                       // translucent highlight for the garbage lookup
     snow: {
@@ -660,15 +1031,15 @@ const RENDERERS = {
     landslide: single(fill(C.orange, 0.35, [150, 95, 0], 1.3, { style: "backward-diagonal" })),
 
     // --- lines ---
-    railLines: single({ type: "simple-line", color: rgba(C.dark, 0.9), width: 2.5, style: "solid" }),
+    railLines: single({ type: "simple-line", color: [90, 90, 90, 0.9], width: 1.25, style: "solid" }),
 
     // --- points ---
     municipal: single(marker("square", C.blue, 10)),
     schools: single(marker("triangle", C.blue, 11)),
     post: single(marker("circle", C.blue, 8)),
-    police: single(marker("diamond", C.blue, 11)),
-    shelters: single(marker("square", C.green, 12, [255, 255, 255, 1], 1.5)),
-    railStations: single({ type: "simple-marker", style: "circle", color: [255, 255, 255, 1], size: "10px", outline: { color: rgba(C.dark), width: 2.5 } }),
+    shelters: single(marker("square", C.green, 9, [255, 255, 255, 1], 1)),
+    police: single(marker("diamond", [0, 45, 110], 12, [255, 255, 255, 1], 1.5)),
+    railStations: single({ type: "simple-marker", style: "circle", color: [255, 255, 255, 1], size: "10px", outline: { color: rgba(C.dark), width: 1.5 } }),
     bus: single(marker("circle", C.sky, 7, [0, 60, 100, 1], 1)),
     roadside: single(marker("diamond", C.orange, 13, [120, 75, 0, 1], 1.25)),
     gas: single(marker("square", C.yellow, 9, [80, 70, 0, 1], 1.25)),
@@ -679,7 +1050,7 @@ const RENDERERS = {
         type: "unique-value", field: "facility_type",                    // one color, four shapes
         defaultSymbol: marker("circle", [120, 120, 120], 8),
         uniqueValueInfos: [
-            { value: "Hospital", label: "Hospital (病院)", symbol: marker("cross", C.vermillion, 15, [255, 255, 255, 1], 2) },
+            { value: "Hospital", label: "Hospital (病院)", symbol: marker("cross", C.vermillion, 15, C.vermillion, 2.5) },
             { value: "Clinic", label: "Clinic (診療所)", symbol: marker("circle", C.vermillion, 10) },
             { value: "Dental", label: "Dental Clinic (歯科)", symbol: marker("diamond", C.vermillion, 10) },
             { value: "Pharmacy", label: "Pharmacy (薬局)", symbol: marker("square", C.vermillion, 8) }
@@ -704,25 +1075,43 @@ const SPECS = [
     geojson("avalanche", "layerAvalanche", 12, "datasets/oshima_hiyama_avalanches.geojson", { props: { definitionExpression: "hazard_code = 'AVALANCHE'", renderer: RENDERERS.avalanche }, popup: POPUPS.avalanche }),
     // Garbage lookup: not in the layer list. The search box in the panel is the only way to show it.
     feature("trash", "layerTrash", 13, `${FS}/ForeignHokkaido_TrashRegs_EN_JA/FeatureServer/0`, { props: { renderer: RENDERERS.trash }, popup: POPUPS.trash }),
-    feature("wildlife", "layerWildlife", 15, `${FS}/ForeignHokkaido_OshimaHiyama_WildlifeReserves/FeatureServer/0`, { byGeometry: WILDLIFE_BY_GEOMETRY, popup: genericPopup("layerWildlife") }),
+    feature("wildlife", "layerWildlife", 15, `${FS}/ForeignHokkaido_OshimaHiyama_WildlifeReserves/FeatureServer/0`, { byGeometry: WILDLIFE_BY_GEOMETRY, popup: POPUPS.wildlife }),
     feature("muniBoundaries", "layerMuniBoundaries", 20, `${FS}/ForeignHokkaido_AdminBoundaries/FeatureServer/1`, { props: { renderer: RENDERERS.municipality }, popup: POPUPS.muniBoundaries }),
     feature("oshhiBoundaries", "layerOshHiBoundaries", 21, `${FS}/ForeignHokkaido_AdminBoundaries/FeatureServer/2`, { props: { renderer: RENDERERS.subprefecture }, popup: POPUPS.oshhiBoundaries }),
     feature("railLines", "layerRailLines", 30, `${FS}/ForeignHokkaido_OshimaHiyama_Railroad/FeatureServer/1`, { props: { renderer: RENDERERS.railLines }, popup: POPUPS.railLines }),
-    feature("bus", "layerBus", 40, `${FS}/ForeignHokkaido_OshimaHiyama_RoadsideStations/FeatureServer/1`, { props: { renderer: RENDERERS.bus }, popup: genericPopup("layerBus") }),
-    feature("gas", "layerGas", 41, `${FS}/ForeignHokkaido_OshimaHiyama_RoadsideStations/FeatureServer/2`, { props: { renderer: RENDERERS.gas }, popup: genericPopup("layerGas") }),
-    feature("roadside", "layerRoadside", 42, `${FS}/ForeignHokkaido_OshimaHiyama_RoadsideStations/FeatureServer/0`, { props: { renderer: RENDERERS.roadside }, popup: POPUPS.roadside }),
+    feature("bus", "layerBus", 40, `${FS}/ForeignHokkaido_OshimaHiyama_BusStops/FeatureServer`, { props: { renderer: RENDERERS.bus, minScale: 150000 }, popup: POPUPS.bus }),
+    feature("gas", "layerGas", 41, `${FS}/ForeignHokkaido_OshimaHiyama_RoadsideStations/FeatureServer/2`, { props: { renderer: RENDERERS.gas }, popup: POPUPS.gas }),
+    feature("roadside", "layerRoadside", 42, `${FS}/ForeignHokkaido_OshimaHiyama_MichiNoEki_EN_Names/FeatureServer`, { props: { renderer: RENDERERS.roadside }, popup: POPUPS.roadside }),
     feature("post", "layerPost", 43, `${FS}/ForeignHokkaido_OshimaHiyama_PostOffices/FeatureServer/`, { props: { renderer: RENDERERS.post }, popup: POPUPS.post }),
-    feature("schools", "layerSchools", 44, `${FS}/ForeignHokkaido_OshimaHiyama_Schools/FeatureServer/0`, { props: { renderer: RENDERERS.schools }, popup: POPUPS.schools }),
+    feature("schools", "layerSchools", 44, `${FS}/ForeignHokkaido_OshimaHiyama_Schools/FeatureServer`, { props: { renderer: RENDERERS.schools }, popup: POPUPS.schools }),
     feature("municipal", "layerMunicipal", 45, `${FS}/ForeignHokkaido_Municipal_Offices_etc_and_Public_Meeting_Facilities/FeatureServer`, { props: { definitionExpression: "P05_002 IN ('1', '2', '4')", renderer: RENDERERS.municipal }, popup: POPUPS.municipal }),
-    feature("police", "layerPolice", 46, `${FS}/ForeignHokkaido_OshimaHiyama_Police/FeatureServer/1`, { props: { renderer: RENDERERS.police }, popup: POPUPS.police }),
-    feature("shelters", "layerShelters", 47, `${FS}/ForeignHokkaido_DisasterPrevention/FeatureServer/1`, { props: { renderer: RENDERERS.shelters }, popup: POPUPS.shelters }),
-    feature("railStations", "layerRailStations", 48, `${FS}/ForeignHokkaido_OshimaHiyama_Railroad/FeatureServer/0`, { props: { renderer: RENDERERS.railStations }, popup: POPUPS.railStations }),
-    geojson("medical", "layerMedical", 49, "datasets/oshima_hiyama_medical_master.geojson", { props: { renderer: RENDERERS.medical }, popup: POPUPS.medical }),
-    geojson("ski", "layerSki", 50, "datasets/hokkaido_ski_resorts.geojson", { props: { renderer: RENDERERS.ski }, popup: POPUPS.ski }),
-    feature("communityEvents", "layerCommunityEvents", 55, `${FS}/survey123_ce59397e2ce24ba9825b39f151844c21_results/FeatureServer/0`, { props: { renderer: RENDERERS.communityEvents }, popup: POPUPS.communityEvents }),
-    feature("localInterests", "layerLocalInterests", 56, `${FS}/survey123_4d7f38da81374bb8b57cd737de7fe630_results/FeatureServer/0`, { props: { renderer: RENDERERS.localInterests }, popup: POPUPS.localInterests })
+    feature("shelters", "layerShelters", 46, `${FS}/ForeignHokkaido_DisasterPrevention/FeatureServer`, { props: { renderer: RENDERERS.shelters, minScale: 280000 }, popup: POPUPS.shelters }),
+    feature("police", "layerPolice", 47, `${FS}/ForeignHokkaido_OshimaHiyama_Police/FeatureServer/1`, { props: { renderer: RENDERERS.police }, popup: POPUPS.police }),
+    feature("railStations", "layerRailStations", 48, `${FS}/ForeignHokkaido_OshimaHiyama_TrainStations_EN_Names/FeatureServer`, { props: { renderer: RENDERERS.railStations }, popup: POPUPS.railStations }),
+    geojson("medical", "layerMedical", 49, "datasets/oshima_hiyama_medical_master_v2.geojson", { props: { renderer: RENDERERS.medical, minScale: 200000 }, popup: POPUPS.medical }),
+    geojson("ski", "layerSki", 50, "datasets/ski_resorts_v2.geojson", { props: { renderer: RENDERERS.ski }, popup: POPUPS.ski }),
+    feature("communityEvents", "layerCommunityEvents", 55, `${FS}/survey123_ce59397e2ce24ba9825b39f151844c21_results/FeatureServer`, { props: { renderer: RENDERERS.communityEvents }, popup: POPUPS.communityEvents }),
+    feature("localInterests", "layerLocalInterests", 56, `${FS}/survey123_4d7f38da81374bb8b57cd737de7fe630_results/FeatureServer`, { props: { renderer: RENDERERS.localInterests }, popup: POPUPS.localInterests })
 ];
 const SPEC = Object.fromEntries(SPECS.map((s) => [s.key, s]));
+
+/* ---- Attribution -----------------------------------------------------------
+   Shown in the map's attribution bar (bottom edge) while the layer is visible.
+   Identical strings are merged by the SDK, so every MLIT layer uses the same text.
+   Layers with no entry (snow, hazards, medical) show nothing; add one when the source is settled.
+   -------------------------------------------------------------------------- */
+const MLIT_CREDIT = ["MLIT National Land Numerical Information", "国土数値情報（国土交通省）"];
+const CREDITS = {
+    municipal: MLIT_CREDIT, police: MLIT_CREDIT, post: MLIT_CREDIT, schools: MLIT_CREDIT, roadside: MLIT_CREDIT,
+    bus: MLIT_CREDIT, gas: MLIT_CREDIT, shelters: MLIT_CREDIT, wildlife: MLIT_CREDIT,
+    muniBoundaries: MLIT_CREDIT, oshhiBoundaries: MLIT_CREDIT, railStations: MLIT_CREDIT, railLines: MLIT_CREDIT,
+    medical: ["Medical facilities: Hokkaido Government hospital list (R8.4.1) and foreign-language support list", "医療機関：北海道 病院名簿（R8.4.1）・外国語対応可能医療機関一覧"],
+    trash: ["Garbage rules: each town's official website (checked Nov 2026)", "ごみ分別：各自治体の公式サイト（2026年11月確認）"],
+    ski: ["Ski areas: town and resort listings (checked Nov 2026)", "スキー場：自治体・施設の公開情報（2026年11月確認）"],
+    communityEvents: ["Community submissions", "コミュニティ投稿"],
+    localInterests: ["Community submissions", "コミュニティ投稿"]
+};
+const creditFor = (key, L) => { const c = CREDITS[key]; return c ? (L === "JA" ? c[1] : c[0]) : undefined; };
 
 /* ---- Season baselines ------------------------------------------------------
    Switching season turns that season's layers on and the other season's off.
@@ -731,8 +1120,8 @@ const SPEC = Object.fromEntries(SPECS.map((s) => [s.key, s]));
    -------------------------------------------------------------------------- */
 const ALWAYS_ON = ["oshhiBoundaries"];
 const SEASON_LAYERS = {
-    summer: ["muniBoundaries", "landslide", "roadside"],
-    winter: ["snow", "avalanche", "shelters", "ski"]
+    summer: ["muniBoundaries", "landslide"],
+    winter: ["snow", "avalanche", "ski"]
 };
 const isBaseline = (key, season) => ALWAYS_ON.includes(key) || SEASON_LAYERS[season].includes(key);
 
@@ -773,6 +1162,7 @@ function createLayer(spec) {
         title: t(spec.labelKey, currentLang),
         outFields: ["*"],
         visible: isBaseline(spec.key, currentSeason),
+        ...(creditFor(spec.key, currentLang) ? { copyright: creditFor(spec.key, currentLang) } : {}),
         ...spec.props
     });
     layers[spec.key] = layer;
@@ -782,6 +1172,7 @@ function createLayer(spec) {
         const checkbox = panelEl?.querySelector(`#toggle-${spec.key}`);
         if (checkbox) checkbox.checked = visible;
         if (visible) syncFilter(layer);
+        updateScaleHints();
     });
     layer.when(
         () => {
@@ -796,7 +1187,8 @@ function createLayer(spec) {
 
 function applyPopup(spec) {
     const layer = layers[spec.key];
-    if (layer) layer.popupTemplate = spec.popup(currentLang, layer);
+    // lastEditInfoEnabled:false keeps the "Last edited by <account>" line (a submitter's email) out of every popup.
+    if (layer) layer.popupTemplate = { ...spec.popup(currentLang, layer), lastEditInfoEnabled: false };
 }
 
 /** Console report of popup fields that do not exist on the layer (typos, renamed fields). */
@@ -929,8 +1321,9 @@ function renderPanel() {
                 ${c.layers.map((key) => `
                     <label class="fh-check">
                         <input type="checkbox" id="toggle-${key}" data-layer="${key}"${layers[key].visible ? " checked" : ""}>
-                        <span id="toggle-${key}-lbl">${t(SPEC[key].labelKey, L)}</span>
-                    </label>`).join("")}
+                        <span class="fh-check-text"><span id="toggle-${key}-lbl">${t(SPEC[key].labelKey, L)}</span>${SPEC[key].props?.minScale ? `<small class="fh-hint" id="hint-${key}" hidden>${t("zoomHint", L)}</small>` : ""}</span>
+                    </label>${key === "medical" ? `
+                    <label class="fh-check fh-sub"><input type="checkbox" id="medical-multi"${medicalMultiOnly ? " checked" : ""}><span class="fh-check-text"><span>🌟 ${t("medicalMultiOnly", L)}</span></span></label>` : ""}`).join("")}
             </div>`).join("")}
         <div class="fh-section-title">${t("crowdsourceHeader", L)}</div>
         <div class="fh-links">
@@ -940,6 +1333,30 @@ function renderPanel() {
         </div>`;
     panelEl.scrollTop = scroll;
     toggleBtn.textContent = t("mapControlsBtn", L);
+    updateScaleHints();
+}
+
+function updateScaleHints() {
+    if (!view || !panelEl) return;
+    for (const spec of SPECS) {
+        if (!spec.props?.minScale) continue;
+        const minScale = layers[spec.key]?.minScale; // current value (0 = no limit)
+        const hidden = !(layers[spec.key]?.visible && minScale && view.scale > minScale);
+        const hint = panelEl.querySelector(`#hint-${spec.key}`);
+        if (hint) hint.hidden = hidden;
+        panelEl.querySelector(`#toggle-${spec.key}-lbl`)?.classList.toggle("is-muted", !hidden);
+    }
+}
+
+// Show only facilities with foreign-language support. The four matches would vanish when zoomed out, so minScale is lifted while this is on.
+function setMedicalMultiOnly(on) {
+    medicalMultiOnly = on;
+    const layer = layers.medical;
+    if (!layer) return;
+    layer.definitionExpression = on ? "multilingual = 1" : null;
+    layer.minScale = on ? 0 : SPEC.medical.props.minScale;
+    if (on) layer.visible = true;
+    updateScaleHints();
 }
 
 export function setPanelOpen(open) {
@@ -970,6 +1387,7 @@ function buildControls() {
     panelEl.addEventListener("change", (e) => {
         const el = e.target;
         if (el.dataset?.layer) layers[el.dataset.layer].visible = el.checked;
+        else if (el.id === "medical-multi") setMedicalMultiOnly(el.checked);
         else if (el.id === "muni-filter-select") applyMuniFilter(el.value);
         else if (el.id === "trash-filter-select") showTrash(el.value);
     });
@@ -1037,7 +1455,7 @@ export function setLanguage(lang) {
     if (view) {
         applyLocale();
         applyBasemap();
-        SPECS.forEach((s) => { layers[s.key].title = t(s.labelKey, currentLang); applyPopup(s); });
+        SPECS.forEach((s) => { layers[s.key].title = t(s.labelKey, currentLang); const c = creditFor(s.key, currentLang); if (c) layers[s.key].copyright = c; applyPopup(s); });
         renderPanel();
         setPanelOpen(panelOpen);
         refreshOpenPopup();
@@ -1051,6 +1469,7 @@ export function resetView() {
     muniFilter = "ALL";
     trashTown = "ALL";
     showTrash("ALL");
+    setMedicalMultiOnly(false);
     renderPanel();
     applyMuniFilter("ALL");
 }
@@ -1098,6 +1517,7 @@ export async function initMap(containerId, apiKey) {
         view.popup.dockEnabled = !mobile;
         view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-right" };
     };
+    view.watch("scale", updateScaleHints);
     view.watch("widthBreakpoint", applyBreakpoint);
     applyBreakpoint(view.widthBreakpoint);
 

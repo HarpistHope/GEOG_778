@@ -36,6 +36,7 @@ export const translations = {
         layerRailStations: "Railway Stations",
         layerRailLines: "Railway Lines",
         layerMedical: "Medical Facilities (Hospitals, Clinics, Dentists, Pharmacies)",
+        medicalMultiOnly: "Only facilities with foreign-language support",   // EN
         layerTrash: "Garbage & Recycling Regulations",
         layerAvalanche: "Avalanche Hazard Zones",
         layerLandslide: "Landslide Hazard Zones",
@@ -56,6 +57,8 @@ export const translations = {
         tourNext: "Next",
         tourFinish: "Finish",
         tourStep: "Step {n} of {total}",
+
+        zoomHint: "Zoom in to see these on the map",
 
         locDenied: "Location access was denied. Enable location permission in your browser settings to find your position.",
         locUnavailable: "Your position could not be determined. Check your device's location settings.",
@@ -98,6 +101,7 @@ export const translations = {
         layerRailStations: "鉄道駅",
         layerRailLines: "鉄道路線",
         layerMedical: "医療施設（病院・診療所・歯科・薬局）",
+        medicalMultiOnly: "外国語対応の施設のみ表示", 
         layerTrash: "ごみ・リサイクル分別ルール",
         layerAvalanche: "雪崩危険区域",
         layerLandslide: "土砂災害危険区域",
@@ -118,6 +122,8 @@ export const translations = {
         tourNext: "次へ",
         tourFinish: "完了",
         tourStep: "ステップ {n} / {total}",
+
+        zoomHint: "地図を拡大すると表示されます",
 
         locDenied: "位置情報へのアクセスが拒否されました。現在地を表示するには、ブラウザの設定で位置情報を許可してください。",
         locUnavailable: "現在地を取得できませんでした。端末の位置情報設定をご確認ください。",
