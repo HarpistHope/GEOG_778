@@ -1,5 +1,5 @@
 // main.js — header wiring, onboarding tour, app bootstrap
-import { initMap, setSeason, setLanguage, resetView, onChange, currentLang, currentSeason } from "./map.js";
+import { initMap, setSeason, setLanguage, resetView, onChange, currentLang, currentSeason, setPanelOpen } from "./map.js";
 import { setupLocationServices } from "./location.js";
 import { t, tourSteps } from "./localization.js";
 
@@ -82,6 +82,8 @@ function renderTour() {
     const step = steps[tour.step];
     const L = currentLang;
     const q = (sel) => tour.modal.querySelector(sel);
+    setPanelOpen(!!step.panel);
+    tour.root.classList.remove("tour-top");
     q("#tourTitle").textContent = step.title;
     q(".tour-step-count").textContent = t("tourStep", L).replace("{n}", tour.step + 1).replace("{total}", steps.length);
     q(".tour-body").textContent = step.text;
@@ -98,13 +100,25 @@ function renderTour() {
 function placeSpot() {
     if (!tour) return;
     const target = tourSteps[currentLang][tour.step].target;
-    const rect = target ? document.querySelector(target)?.getBoundingClientRect() : null;
+    const node = target ? document.querySelector(target) : null;
+    const onPanel = !!tourSteps[currentLang][tour.step].panel;
+    node?.scrollIntoView?.({ block: onPanel ? "center" : "nearest" }); // panel items may be scrolled out of view
+    const rect = node ? node.getBoundingClientRect() : null;
     const spot = tour.spot;
+    // Phones: the card sits next to the highlighted item (below it, or above it when it is in the lower half);
+    // with no item it is centered. Desktop: CSS keeps the card at the bottom center.
+    const mobile = window.matchMedia("(max-width: 768px)").matches;
+    const modal = tour.modal;
+    if (!mobile) modal.style.marginTop = "";
+    const place = (top) => { if (mobile) modal.style.marginTop = `${Math.round(Math.max(8, Math.min(top, window.innerHeight - modal.offsetHeight - 8)))}px`; };
     if (!rect || rect.width === 0) {
+        place((window.innerHeight - modal.offsetHeight) / 2);
         spot.className = "tour-spot tour-spot--none";
         spot.removeAttribute("style");
         return;
     }
+    const gap = 18;
+    place(rect.top + rect.height / 2 < window.innerHeight / 2 ? rect.bottom + gap : rect.top - gap - modal.offsetHeight);
     const pad = 6;
     spot.className = "tour-spot";
     Object.assign(spot.style, {
@@ -126,6 +140,7 @@ function closeTour() {
     window.removeEventListener("resize", placeSpot);
     const { root } = tour;
     tour = null;
+    setPanelOpen(false);
     root.classList.remove("active");
     setTimeout(() => root.remove(), 300);
 }

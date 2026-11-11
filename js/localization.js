@@ -74,7 +74,7 @@ export const translations = {
         seasonBtnSummer: "☀️ 夏季モード",
         resetBtn: "🎯 全域表示",
         tourBtn: "❓ アプリツアー",
-        panelTitle: "インタラクティブ・コントロールパネル",
+        panelTitle: "マップ操作パネル",
         mapControlsBtn: "マップ操作",
         muniFilterLabel: "市町村で絞り込み",
         muniAll: "全自治体を表示",
@@ -136,15 +136,27 @@ export const translations = {
 export const tourSteps = {
     EN: [
         { title: "Welcome to ForeignHokkaido", text: "An interactive map for Assistant Language Teachers living in the Oshima and Hiyama regions of Hokkaido: services, safety information and community tips in one place.", target: null },
-        { title: "Switch language", text: "Change the interface, map labels, municipality filters and popups between English and Japanese with one click.", target: "#btn-lang-toggle" },
-        { title: "Map controls", text: "Open Map Controls to switch layers on and off (boundaries, hazards, medical facilities, transit), filter by municipality, and look up garbage rules.", target: "#controlPanelCustomBtn" },
-        { title: "Winter mode", text: "Switch the basemap and show snow statistics, avalanche zones and ski areas for winter preparation.", target: "#btn-season-toggle" },
-        { title: "Reset extent", text: "Return to the regional overview of southwestern Hokkaido and clear any municipality filter.", target: "#btn-reset-view" }
+        { title: "Switch language", text: "Switch the app's language between English and Japanese with one click.", target: "#btn-lang-toggle" },
+        { title: "Map controls", text: "Open Map Controls to switch layers on and off, filter by municipality, look up garbage rules, and find your nearest points of interest.", target: "#controlPanelCustomBtn" },
+        { title: "Municipality filter", text: "Restrict features to those within the selected town. Choose “Show all municipalities”, or press Reset Extent, to clear the filter.", target: "#tour-muni", panel: true },
+        { title: "Garbage lookup", text: "Select a municipality for an overview of its garbage sorting and collection regulations.", target: "#tour-trash", panel: true },
+        { title: "Find the nearest", text: "Choose what you need (hospital, pharmacy, shelter, bus stop…), then tap “Use my location” or “Pick on map”. You will get the three closest results within a straight-line distance.", target: "#tour-nearest", panel: true },
+        { title: "Layers", text: "Tick a layer to show it on the map; layers are grouped by topic. Under Medical, the 🌟 box shows only facilities with foreign-language support. Dense layers (such as bus stops) appear once you zoom in (a note will tell you when that is the case).", target: "#tour-layers", panel: true },
+        { title: "Community", text: "Share a community event, a local point of interest, or report an issue with the app. Each button opens a survey form in a new tab; new community event and local interest spots will be automatically added to the map.", target: "#tour-links", panel: true },
+        { title: "Legend", text: "Open the Legend button in the top-left stack of map buttons to see what each symbol, color and shape on the map means. It lists only the layers that are switched on.", target: "#fh-legend, .esri-ui-top-left .esri-expand" },
+        { title: "Winter mode", text: "Turn on Winter Mode to show regional snow statistics, avalanche zones, and ski areas for winter preparation.", target: "#btn-season-toggle" },
+        { title: "Reset extent", text: "Return to the regional overview of southwestern Hokkaido and clear any filters.", target: "#btn-reset-view" }
     ],
     JA: [
         { title: "ForeignHokkaido へようこそ", text: "渡島・檜山地域で暮らすALTのための、生活情報・防災情報・地域のおすすめをまとめたインタラクティブマップです。", target: null },
         { title: "言語の切り替え", text: "画面表示、地図ラベル、市町村フィルター、ポップアップを、ワンクリックで日本語と英語に切り替えられます。", target: "#btn-lang-toggle" },
-        { title: "マップ操作", text: "「マップ操作」から、レイヤー（行政区画・災害・医療・交通）の表示切替、市町村での絞り込み、ごみ収集ルールの検索ができます。", target: "#controlPanelCustomBtn" },
+        { title: "マップ操作", text: "「マップ操作」から、レイヤーの表示切替、市町村での絞り込み、ごみ収集ルールの検索、近くの病院・避難所・バス停の検索ができます。次のステップでパネルを順に紹介します。", target: "#controlPanelCustomBtn" },
+        { title: "市町村フィルター", text: "市町村を選ぶとその地域にズームし、地域内の施設だけを表示します。「すべての市町村」を選ぶか、全域表示を押すと解除されます。", target: "#tour-muni", panel: true },
+        { title: "ごみ収集の検索", text: "お住まいの市町村を選ぶと、その地域が強調表示され、ごみの分別・収集ルールと自治体の公式ページへのリンクが表示されます。確認が不十分な市町村には注意書きが出ます。", target: "#tour-trash", panel: true },
+        { title: "近くの施設を探す", text: "探したい施設（病院、薬局、避難所、バス停など）を選び、「現在地から」または「地図で選ぶ」を押すと、近い順に3件を距離・地図表示・経路付きで表示します。使ったボタンは強調表示されます。距離は直線距離です。", target: "#tour-nearest", panel: true },
+        { title: "レイヤー", text: "チェックを入れるとレイヤーが地図に表示されます（テーマごとにグループ化）。「医療施設」の🌟は、外国語対応の施設のみを表示します。バス停など件数の多いレイヤーは拡大すると表示され、その場合は案内が出ます。", target: "#tour-layers", panel: true },
+        { title: "コミュニティ", text: "イベントや地域のおすすめの投稿、データの誤りの報告、アプリの不具合の報告ができます。いずれも新しいタブでフォームが開きます。", target: "#tour-links", panel: true },
+        { title: "凡例", text: "地図左上のボタンにある「凡例」を開くと、地図上の記号・色・形の意味を確認できます。表示中のレイヤーだけが一覧に表示されます。", target: "#fh-legend, .esri-ui-top-left .esri-expand" },
         { title: "冬季モード", text: "ベースマップを切り替え、積雪統計・雪崩危険区域・スキー場を表示して冬の備えに役立てられます。", target: "#btn-season-toggle" },
         { title: "全域表示", text: "南西北海道の全体表示に戻り、市町村の絞り込みを解除します。", target: "#btn-reset-view" }
     ]

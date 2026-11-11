@@ -9,6 +9,11 @@ import { t, municipalities, districts, subprefectures } from "./localization.js"
    ========================================================================== */
 
 const HOME = { center: [140.3, 42.09], zoom: 9 };
+// Starting view: zoom 9 on wide screens; on narrow screens zoom out (fractionally) so the whole study area fits the width.
+const homeView = (width = window.innerWidth) => ({
+    center: HOME.center,
+    zoom: window.matchMedia(MOBILE_QUERY).matches ? HOME.zoom - 1 : Math.min(HOME.zoom, Math.log2(0.62 * width)) // phones: one level out from desktop
+});
 const EASE = { duration: 1500, easing: "in-out-cubic" };
 const SERVICES = "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services";
 const TRASH_MUNI_FIELD = "N03_004"; // field on the trash layer holding the Japanese municipality name
@@ -33,6 +38,10 @@ let view = null;
 let toggleBtn = null;
 let panelEl = null;
 let panelOpen = false;
+let townGfx = null;            // outline of the selected / filtered municipality
+let nearestGfx = null;         // graphics layer holding the "you are here" and numbered result markers
+let pickingOrigin = false;     // true while waiting for the user to tap the map
+let toastEl = null;
 let medicalMultiOnly = false; // "multilingual clinics only" toggle under the medical layer
 let muniFilter = "ALL";        // value of the municipality filter dropdown
 let trashTown = "ALL";         // value of the trash lookup dropdown
@@ -207,16 +216,14 @@ const POPUPS = {
         content: body(
             row(tr(L, "Municipality", "市区町村"), X("name")) +
             row(tr(L, "Subprefecture", "振興局"), X("sub")) +
-            row(tr(L, "District / County", "郡"), X("district")) +
-            row(tr(L, "JIS code", "全国地方公共団体コード"), X("jis"))
-        ),
+            row(tr(L, "District / County", "郡"), X("district"))
+        ).concat(custom((g) => muniSummary(g, L))),
         expressionInfos: [
             E("name", muniNameBody(L, "N03_004")),
             E("sub", subBy((x) => tr(L, x.en, x.ja), "s")),
             E("district",
                 `var d = ${NZ("N03_003", "")}; if (d == '') { return ${q(tr(L, "Independent city", "市部（郡に属さない）"))}; } ` +
-                (L === "JA" ? "return d;" : `return ${DISTRICT_EN};`)),
-            E("jis", `return ${NZ("N03_007")};`)
+                (L === "JA" ? "return d;" : `return ${DISTRICT_EN};`))
         ]
     }),
 
@@ -252,7 +259,8 @@ const POPUPS = {
                 const url = safeUrl(attr(g, "trash_url"));
                 if (url) {
                     const l = el("div", { style: "background:#eff6ff;border:1px solid #bfdbfe;padding:8px 10px;border-radius:6px;margin-bottom:10px;text-align:center" });
-                    l.append("🔗 ", linkEl(url, tr(L, "Official town page ↗", "自治体の公式ページ ↗")));
+                    const union = /eiseicenter\.or\.jp/i.test(url); // Setana and Imakane: the union's site holds the district calendars
+                    l.append("🔗 ", linkEl(url, union ? tr(L, "Official collection calendars by district ↗", "地区別ごみ収集カレンダー（公式） ↗") : tr(L, "Official town page ↗", "自治体の公式ページ ↗")));
                     box.append(l);
                 }
                 // 3. One block per waste type (skipped when the layer has no data for it)
@@ -529,7 +537,8 @@ const POPUPS = {
                 `<b>${tr(L, "Climate averages", "気候平均値")}:</b>` +
                 `<ul style="margin:4px 0 0 18px;padding:0"><li>${tr(L, "Avg. minimum temperature", "平均最低気温")}: ${X("temp")}</li>` +
                 `<li>${tr(L, "Avg. total snowfall", "平均年間降雪量")}: ${X("snow")}</li>` +
-                `<li>${tr(L, "Avg. maximum snow depth", "平均最大積雪深")}: ${X("depth")}</li></ul>`
+                `<li>${tr(L, "Avg. maximum snow depth", "平均最大積雪深")}: ${X("depth")}</li></ul>` +
+                srcNote(L, 2014)
             ),
             expressionInfos: [
                 E("muni", muniNameBody(L, "A22_100004")),
@@ -553,7 +562,8 @@ const POPUPS = {
             lead(X("service"), "plain") +
             (L === "EN" ? row("Japanese name", "{N02_005}駅") : "") +
             row(tr(L, "Line", "路線名"), X("line")) +
-            row(tr(L, "Operator", "運行会社"), X("operator"))
+            row(tr(L, "Operator", "運行会社"), X("operator")) +
+            srcNote(L, 2025)
         ), actions(L)],
         expressionInfos: [
             E("line", L === "JA" ? `return ${NZ("N02_003")};` : `var l = ${NZ("N02_003", "")}; return ${decodePairs("l", LINE_PAIRS)};`),
@@ -571,7 +581,7 @@ const POPUPS = {
 
     railLines: (L) => ({
         title: `🚆 ${X("line")}`,
-        content: body(row(tr(L, "Line", "路線名"), X("line")) + row(tr(L, "Operator", "運行会社"), X("operator"))),
+        content: body(row(tr(L, "Line", "路線名"), X("line")) + row(tr(L, "Operator", "運行会社"), X("operator")) + srcNote(L, 2025)),
         expressionInfos: [
             E("line", L === "JA" ? `return ${NZ("N02_003")};` : `var l = ${NZ("N02_003", "")}; if (l == '') { return '—'; } return ${decodePairs("l", LINE_PAIRS)};`),
             E("operator", L === "JA" ? `return ${NZ("N02_004")};` : `var o = ${NZ("N02_004", "")}; if (o == '') { return '—'; } return ${decodePairs("o", OPERATOR_PAIRS)};`)
@@ -681,12 +691,12 @@ const POPUPS = {
                 row(tr(L, "Address", "所在地"), X("addr")) +
                 (L === "EN" ? row("Japanese name", X("jaName")) : "") +
                 row(X("deptLabel"), X("depts"))
-            ), custom(() => el("div", { style: "font-size:11px;color:#666;margin-top:8px", textContent: tr(L, "Source: Hokkaido Government hospital list (R8.4.1) and foreign-language support list. Confirm details with the facility.", "出典：北海道「病院名簿（R8.4.1）」「外国語対応可能医療機関一覧」。詳細は各医療機関にご確認ください。") })),
+            ), custom(() => el("div", { style: "font-size:11px;color:#666;margin-top:8px", textContent: tr(L, "Sources: Hokkaido Government open data \"道内医療機関一覧（位置情報付き）\" (CC BY, as of Feb 2026) and the Hokkaido list of facilities with foreign-language support. May include closed or moved facilities: confirm with the facility.", "出典：北海道「道内医療機関一覧（位置情報付き）」（CC BY・2026年2月時点）、北海道「外国語対応可能医療機関一覧」。閉院・移転の可能性があるため、各医療機関にご確認ください。") })),
 actions(L, "所在地")],
             expressionInfos: [
                 E("title", L === "JA"
                     ? `return nz(${G("名称")}, ${NZ("name_en")});`
-                    : `var a = ${NZ("name_en", "")}; if (a != '') { return a; } var b = ${NZ("name_romaji", "")}; if (b != '') { return b; } return ${NZ("名称")};`),
+                    : `var a = ${NZ("name_en", "")}; if (a != '') { return a; } return ${NZ("名称")};`),
                 E("addr", `var a = ${NZ("所在地")}; var z = ${NZ("郵便番号", "")}; if (z == '') { return a; } return ${L === "JA" ? "'〒' + z + ' ' + a" : "a + ' (' + z + ')'"};`),
                 E("jaName", `return ${NZ("名称")};`),
                 E("deptLabel", `if (${NZ("facility_type", "")} == 'Pharmacy') { return ${q(tr(L, "Services", "業務"))}; } return ${q(tr(L, "Departments", "診療科目"))};`),
@@ -785,7 +795,7 @@ actions(L, "所在地")],
                     return box;
                 }),
                 ...body((L === "EN" ? row("Area name (Japanese)", X("jname")) : "") + note(tr(L, "Area names are shown in Japanese. Hunting rules apply to hunters only, but stay on marked trails and keep a distance from wildlife.",
-                    "区域名は日本語表記です。狩猟規制は狩猟者が対象ですが、野生動物には近づかず、遊歩道を外れないようご注意ください。")))
+                    "区域名は日本語表記です。狩猟規制は狩猟者が対象ですが、野生動物には近づかず、遊歩道を外れないようご注意ください。")) + srcNote(L, 2015))
             ],
             expressionInfos: [
                 E("name", L === "EN" ? `return ${q("Wildlife Protection Area")};` : `return ${NZ("A15_001", "鳥獣保護区")};`),
@@ -882,7 +892,7 @@ actions(L, "所在地")],
                 row(tr(L, "Carpooling", "相乗り"), X("carpool")) +
                 row(`👤 ${tr(L, "Contact", "連絡先")}`, X("contact")) + HR +
                 `<b>📝 ${tr(L, "Additional information", "追加情報")}:</b><p style="margin:4px 0">${X("info")}</p>` +
-                note(tr(L, "Submitted via the ForeignHokkaido community survey. Free-text details are shown as the submitter wrote them.", "コミュニティ投稿フォームより。自由記述は投稿者の入力どおりに表示されます。"))
+                note(tr(L, "Submitted by a community member via the ForeignHokkaido survey and not verified. Free-text details are shown as the submitter wrote them.", "コミュニティ会員がフォームから投稿した情報で、内容は確認されていません。自由記述は投稿者の入力どおりに表示されます。"))
             ),
             expressionInfos: [
                 // Keyword match (Survey123 can truncate stored codes). "Other" shows the person's own text as written.
@@ -926,7 +936,7 @@ actions(L, "所在地")],
         content: body(
             lead(`${tr(L, "Recommendation", "おすすめ度")}: ${X("rating")}`, "good") +
             `<b>📝 ${tr(L, "Additional information", "追加情報")}:</b><p style="margin:4px 0">${X("info")}</p>` +
-            note(tr(L, "Submitted via the ForeignHokkaido community survey. Free-text details are shown as the submitter wrote them.", "コミュニティ投稿フォームより。自由記述は投稿者の入力どおりに表示されます。"))
+            note(tr(L, "Submitted by a community member via the ForeignHokkaido survey and not verified. Free-text details are shown as the submitter wrote them.", "コミュニティ会員がフォームから投稿した情報で、内容は確認されていません。自由記述は投稿者の入力どおりに表示されます。"))
         ),
         expressionInfos: [
             E("type", `var c = ${NZ("what_type_of_interest_are_you_a", "")}; var o = ${NZ("what_type_of_interest_are_other", "")}; ` +
@@ -1069,6 +1079,9 @@ const feature = (key, labelKey, z, url, extra = {}) => ({ key, labelKey, z, type
 const geojson = (key, labelKey, z, url, extra = {}) => ({ key, labelKey, z, type: "geojson", url, ...extra });
 const FS = `${SERVICES}`;
 
+/* Community layers (Survey123 results) are re-queried while the map is open, so new
+   submissions appear without a page reload. Minutes; 0 turns it off. */
+const LIVE_REFRESH_MIN = 1;
 const SPECS = [
     feature("snow", "layerSnow", 10, `${FS}/ForeignHokkaido_OshimaHiyama_SnowStats/FeatureServer/0`, { props: { renderer: RENDERERS.snow }, popup: POPUPS.snow }),
     geojson("landslide", "layerLandslide", 11, "datasets/oshima_hiyama_landslides.geojson", { props: { definitionExpression: "hazard_code = 'LANDSLIDE'", renderer: RENDERERS.landslide }, popup: POPUPS.landslide }),
@@ -1076,7 +1089,7 @@ const SPECS = [
     // Garbage lookup: not in the layer list. The search box in the panel is the only way to show it.
     feature("trash", "layerTrash", 13, `${FS}/ForeignHokkaido_TrashRegs_EN_JA/FeatureServer/0`, { props: { renderer: RENDERERS.trash }, popup: POPUPS.trash }),
     feature("wildlife", "layerWildlife", 15, `${FS}/ForeignHokkaido_OshimaHiyama_WildlifeReserves/FeatureServer/0`, { byGeometry: WILDLIFE_BY_GEOMETRY, popup: POPUPS.wildlife }),
-    feature("muniBoundaries", "layerMuniBoundaries", 20, `${FS}/ForeignHokkaido_AdminBoundaries/FeatureServer/1`, { props: { renderer: RENDERERS.municipality }, popup: POPUPS.muniBoundaries }),
+    feature("muniBoundaries", "layerMuniBoundaries", 22, `${FS}/ForeignHokkaido_AdminBoundaries/FeatureServer/1`, { props: { renderer: RENDERERS.municipality }, popup: POPUPS.muniBoundaries }),
     feature("oshhiBoundaries", "layerOshHiBoundaries", 21, `${FS}/ForeignHokkaido_AdminBoundaries/FeatureServer/2`, { props: { renderer: RENDERERS.subprefecture }, popup: POPUPS.oshhiBoundaries }),
     feature("railLines", "layerRailLines", 30, `${FS}/ForeignHokkaido_OshimaHiyama_Railroad/FeatureServer/1`, { props: { renderer: RENDERERS.railLines }, popup: POPUPS.railLines }),
     feature("bus", "layerBus", 40, `${FS}/ForeignHokkaido_OshimaHiyama_BusStops/FeatureServer`, { props: { renderer: RENDERERS.bus, minScale: 150000 }, popup: POPUPS.bus }),
@@ -1090,8 +1103,8 @@ const SPECS = [
     feature("railStations", "layerRailStations", 48, `${FS}/ForeignHokkaido_OshimaHiyama_TrainStations_EN_Names/FeatureServer`, { props: { renderer: RENDERERS.railStations }, popup: POPUPS.railStations }),
     geojson("medical", "layerMedical", 49, "datasets/oshima_hiyama_medical_master_v2.geojson", { props: { renderer: RENDERERS.medical, minScale: 200000 }, popup: POPUPS.medical }),
     geojson("ski", "layerSki", 50, "datasets/ski_resorts_v2.geojson", { props: { renderer: RENDERERS.ski }, popup: POPUPS.ski }),
-    feature("communityEvents", "layerCommunityEvents", 55, `${FS}/survey123_ce59397e2ce24ba9825b39f151844c21_results/FeatureServer`, { props: { renderer: RENDERERS.communityEvents }, popup: POPUPS.communityEvents }),
-    feature("localInterests", "layerLocalInterests", 56, `${FS}/survey123_4d7f38da81374bb8b57cd737de7fe630_results/FeatureServer`, { props: { renderer: RENDERERS.localInterests }, popup: POPUPS.localInterests })
+    feature("communityEvents", "layerCommunityEvents", 55, `${FS}/survey123_ce59397e2ce24ba9825b39f151844c21_results/FeatureServer`, { props: { renderer: RENDERERS.communityEvents, refreshInterval: LIVE_REFRESH_MIN }, popup: POPUPS.communityEvents }),
+    feature("localInterests", "layerLocalInterests", 56, `${FS}/survey123_4d7f38da81374bb8b57cd737de7fe630_results/FeatureServer`, { props: { renderer: RENDERERS.localInterests, refreshInterval: LIVE_REFRESH_MIN }, popup: POPUPS.localInterests })
 ];
 const SPEC = Object.fromEntries(SPECS.map((s) => [s.key, s]));
 
@@ -1101,11 +1114,14 @@ const SPEC = Object.fromEntries(SPECS.map((s) => [s.key, s]));
    Layers with no entry (snow, hazards, medical) show nothing; add one when the source is settled.
    -------------------------------------------------------------------------- */
 const MLIT_CREDIT = ["MLIT National Land Numerical Information", "国土数値情報（国土交通省）"];
+const HOKKAIDO_HAZARD_CREDIT = ["Hazard areas: Hokkaido Forestry Bureau, Mountain Disaster Hazard Areas (CC BY 4.0)", "危険地区：北海道水産林務部林務局治山課「山地災害危険地区」（CC BY 4.0）"];
 const CREDITS = {
     municipal: MLIT_CREDIT, police: MLIT_CREDIT, post: MLIT_CREDIT, schools: MLIT_CREDIT, roadside: MLIT_CREDIT,
     bus: MLIT_CREDIT, gas: MLIT_CREDIT, shelters: MLIT_CREDIT, wildlife: MLIT_CREDIT,
     muniBoundaries: MLIT_CREDIT, oshhiBoundaries: MLIT_CREDIT, railStations: MLIT_CREDIT, railLines: MLIT_CREDIT,
-    medical: ["Medical facilities: Hokkaido Government hospital list (R8.4.1) and foreign-language support list", "医療機関：北海道 病院名簿（R8.4.1）・外国語対応可能医療機関一覧"],
+    medical: ["Medical facilities: Hokkaido Government open data (CC BY) and foreign-language support list", "医療機関：北海道オープンデータ（CC BY）・外国語対応可能医療機関一覧"],
+    snow: MLIT_CREDIT, // A22 snowfall statistics
+    avalanche: HOKKAIDO_HAZARD_CREDIT, landslide: HOKKAIDO_HAZARD_CREDIT,
     trash: ["Garbage rules: each town's official website (checked Nov 2026)", "ごみ分別：各自治体の公式サイト（2026年11月確認）"],
     ski: ["Ski areas: town and resort listings (checked Nov 2026)", "スキー場：自治体・施設の公開情報（2026年11月確認）"],
     communityEvents: ["Community submissions", "コミュニティ投稿"],
@@ -1120,7 +1136,7 @@ const creditFor = (key, L) => { const c = CREDITS[key]; return c ? (L === "JA" ?
    -------------------------------------------------------------------------- */
 const ALWAYS_ON = ["oshhiBoundaries"];
 const SEASON_LAYERS = {
-    summer: ["muniBoundaries", "landslide"],
+    summer: ["muniBoundaries"],
     winter: ["snow", "avalanche", "ski"]
 };
 const isBaseline = (key, season) => ALWAYS_ON.includes(key) || SEASON_LAYERS[season].includes(key);
@@ -1154,6 +1170,38 @@ function load(modules) {
    LAYERS
    ========================================================================== */
 
+// Legend entries are written "English (日本語)"; in Japanese mode show only the Japanese part.
+const legendLabels = new Map(); // layer key -> original labels
+function relabelLegend(key, L = currentLang) {
+    const layer = layers[key];
+    const infos = layer?.renderer?.uniqueValueInfos;
+    if (!infos) return;
+    if (!legendLabels.has(key)) legendLabels.set(key, infos.map((i) => i.label));
+    const orig = legendLabels.get(key);
+    const r = layer.renderer.clone();
+    r.uniqueValueInfos.forEach((info, i) => {
+        const m = /^(.*) \((.*)\)$/.exec(orig[i] ?? "");
+        info.label = m && L === "JA" ? m[2] : orig[i];
+    });
+    layer.renderer = r;
+}
+
+/** Re-query a live community layer when its data is older than the refresh interval. */
+function refreshIfStale(layer) {
+    if (!layer?.refreshInterval || typeof layer.refresh !== "function") return;
+    if (Date.now() - (layer.__fhRefreshed || 0) < layer.refreshInterval * 60000) return;
+    layer.__fhRefreshed = Date.now();
+    try { layer.refresh(); } catch (e) { console.warn(`[layer] refresh failed for "${layer.id}":`, e?.message || e); }
+}
+
+/** Phones pause timers in background tabs, so also refresh when the user comes back to the page. */
+function watchLiveLayers() {
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        Object.values(layers).forEach((l) => { if (l?.visible) refreshIfStale(l); });
+    });
+}
+
 function createLayer(spec) {
     const Ctor = spec.type === "geojson" ? esri.GeoJSONLayer : esri.FeatureLayer;
     const layer = new Ctor({
@@ -1167,13 +1215,18 @@ function createLayer(spec) {
     });
     layers[spec.key] = layer;
     applyPopup(spec);
+    relabelLegend(spec.key);
 
     layer.watch("visible", (visible) => {
         const checkbox = panelEl?.querySelector(`#toggle-${spec.key}`);
         if (checkbox) checkbox.checked = visible;
-        if (visible) syncFilter(layer);
+        if (visible) { syncFilter(layer); refreshIfStale(layer); }
         updateScaleHints();
     });
+    if (spec.props?.refreshInterval) {
+        layer.__fhRefreshed = Date.now();
+        layer.on("refresh", () => { layer.__fhRefreshed = Date.now(); });
+    }
     layer.when(
         () => {
             if (spec.byGeometry?.[layer.geometryType]) layer.renderer = spec.byGeometry[layer.geometryType];
@@ -1246,19 +1299,100 @@ async function townGeometry(town) {
     return geometry;
 }
 
+/* ---- Municipality summary (shown in the municipality polygon popup) ---- */
+const SUMMARY_ITEMS = [
+    { layer: "medical", own: true, icon: "🏥", en: "Medical facilities", ja: "医療機関", keepZero: true },
+    { layer: "medical", own: true, where: "multilingual = 1", icon: "🌟", en: "…with foreign-language support", ja: "うち外国語対応", keepZero: true },
+    { layer: "shelters", icon: "🛡️", en: "Emergency shelters", ja: "避難所" },
+    { layer: "schools", icon: "🏫", en: "Schools", ja: "学校" },
+    { layer: "municipal", icon: "🏛️", en: "Town / city offices & facilities", ja: "役場・公共施設" },
+    { layer: "post", icon: "✉️", en: "Post offices", ja: "郵便局" },
+    { layer: "police", icon: "👮", en: "Police boxes / stations", ja: "交番・警察署" },
+    { layer: "railStations", unique: "N02_005", icon: "🚉", en: "Train stations", ja: "駅" },
+    { layer: "bus", icon: "🚌", en: "Bus stops", ja: "バス停" },
+    { layer: "roadside", icon: "🚗", en: "Michi-no-Eki", ja: "道の駅" },
+    { layer: "gas", icon: "⛽", en: "Gas stations", ja: "ガソリンスタンド" }
+];
+const townCountsCache = new Map();
+
+async function townCounts(ja) {
+    if (townCountsCache.has(ja)) return townCountsCache.get(ja);
+    const geometry = await townGeometry(ja);
+    if (!geometry) return null;
+    const counts = await Promise.all(SUMMARY_ITEMS.map(async (it) => {
+        const layer = layers[it.layer];
+        if (!layer) return 0;
+        try {
+            const q = layer.createQuery(); // carries the layer's own definitionExpression
+            q.geometry = geometry;
+            q.spatialRelationship = "intersects";
+            if (it.own) q.where = it.where || "1=1"; // ignore the multilingual-only toggle
+            if (it.unique) {
+                q.outFields = [it.unique];
+                q.returnGeometry = false;
+                const { features } = await layer.queryFeatures(q);
+                return new Set(features.map((f) => f.attributes[it.unique])).size; // a station on two lines counts once
+            }
+            return await layer.queryFeatureCount(q);
+        } catch (e) { console.warn(`Summary count failed for ${it.layer}:`, e); return null; }
+    }));
+    const trashLayer = layers.trash;
+    let hasTrash = false;
+    try { const q = trashLayer.createQuery(); q.where = sqlLike(ja); hasTrash = (await trashLayer.queryFeatureCount(q)) > 0; } catch { /* no trash layer */ }
+    const result = { counts, hasTrash };
+    townCountsCache.set(ja, result);
+    return result;
+}
+
+function muniSummary(graphic, L) {
+    const ja = String(graphic.attributes?.N03_004 ?? "").trim();
+    const wrap = el("div", { style: "font-size:13px;line-height:1.5;margin-top:6px" });
+    if (!ja) return wrap;
+    const head = el("div", { style: "font-weight:700;border-top:1px solid #ddd;padding-top:8px;margin-bottom:4px", textContent: tr(L, "Mapped in this town", "この町にある施設（地図上）") });
+    const status = el("div", { style: "color:#666;font-size:12px", textContent: tr(L, "Counting…", "集計中…") });
+    wrap.append(head, status);
+    townCounts(ja).then((res) => {
+        if (!res) { status.textContent = tr(L, "Summary unavailable.", "集計できませんでした。"); return; }
+        status.remove();
+        const grid = el("div", { style: "display:grid;grid-template-columns:1fr auto;gap:2px 12px" });
+        SUMMARY_ITEMS.forEach((it, i) => {
+            const n = res.counts[i];
+            if (n === null || (!n && !it.keepZero)) return;
+            grid.append(el("span", { textContent: `${it.icon} ${tr(L, it.en, it.ja)}` }), el("b", { style: "text-align:right", textContent: String(n) }));
+        });
+        wrap.append(grid, el("div", { style: "color:#666;font-size:11px;margin-top:4px", textContent: tr(L, "Counts of places on this map; not every business or facility is included.", "このマップに載っている施設の数です。すべての施設を網羅しているわけではありません。") }));
+        const btnStyle = "padding:6px 10px;font:inherit;font-size:12px;font-weight:600;color:#fff;background:#1b365d;border:0;border-radius:6px;cursor:pointer";
+        const btns = el("div", { style: "display:flex;flex-wrap:wrap;gap:6px;margin-top:8px" });
+        btns.append(el("button", { type: "button", style: btnStyle, textContent: tr(L, "Show only this town", "この町だけ表示"), onclick: async () => { await applyMuniFilter(ja); renderPanel(); view.closePopup(); } }));
+        if (res.hasTrash) btns.append(el("button", { type: "button", style: btnStyle, textContent: `🗑️ ${tr(L, "Garbage rules", "ごみ分別")}`, onclick: () => { showTrash(ja); renderPanel(); } }));
+        wrap.append(btns);
+    }).catch((e) => { console.warn("Municipality summary failed:", e); status.textContent = tr(L, "Summary unavailable.", "集計できませんでした。"); });
+    return wrap;
+}
+
+// Outline the chosen town so people can see which one is selected.
+function drawTownHighlight(geometry) {
+    if (!townGfx) return;
+    townGfx.removeAll();
+    if (!geometry) return;
+    townGfx.add(new esri.Graphic({ geometry, symbol: { type: "simple-fill", color: [37, 99, 235, 0.08], outline: { color: [37, 99, 235, 1], width: 3 } } }));
+}
+
 async function applyMuniFilter(town, { zoom = true } = {}) {
     muniFilter = town;
     const token = ++filterToken;
     if (town === "ALL") {
         spatialFilter = null;
+        drawTownHighlight(null);
     } else {
         const geometry = await townGeometry(town).catch((e) => { console.warn("Municipality query failed:", e); return null; });
         if (token !== filterToken || !geometry) return;
         spatialFilter = { geometry, spatialRelationship: "intersects" };
+        drawTownHighlight(geometry);
         if (zoom && geometry.extent) view.goTo(geometry.extent.expand(1.15), EASE);
     }
     Object.values(layers).forEach((layer) => { if (layer.visible) syncFilter(layer); });
-    if (town === "ALL" && zoom) view.goTo(HOME, EASE);
+    if (town === "ALL" && zoom) view.goTo(homeView(view.width), EASE);
 }
 
 async function showTrash(town) {
@@ -1267,7 +1401,7 @@ async function showTrash(town) {
     if (town === "ALL") {
         layer.visible = false;
         layer.definitionExpression = null;
-        if (view.popup.selectedFeature?.layer === layer) view.popup.close();
+        if (view.popup?.selectedFeature?.layer === layer) view.closePopup();
         return;
     }
     layer.definitionExpression = sqlLike(town);
@@ -1281,7 +1415,7 @@ async function showTrash(town) {
         query.outFields = ["*"];
         const { features } = await layer.queryFeatures(query);
         if (features.length && trashTown === town) {
-            view.popup.open({ features: [features[0]], location: geometry?.extent?.center ?? features[0].geometry?.extent?.center });
+            view.openPopup({ features: [features[0]], location: geometry?.extent?.center ?? features[0].geometry?.extent?.center });
         }
     } catch (err) {
         console.warn("Trash lookup failed:", err);
@@ -1305,18 +1439,31 @@ function renderPanel() {
     const L = currentLang;
     const scroll = panelEl.scrollTop;
     panelEl.innerHTML = `
-        <h3>${t("panelTitle", L)}</h3>
-        <div class="fh-field">
+        <div class="fh-panel-head"><h3>${t("panelTitle", L)}</h3><button type="button" class="fh-panel-close" data-panel-close aria-label="${tr(L, "Close panel", "パネルを閉じる")}">✕</button></div>
+        <div class="fh-field" id="tour-muni">
             <label for="muni-filter-select">${t("muniFilterLabel", L)}</label>
             <select id="muni-filter-select" class="fh-select">${muniOptions(L, t("muniAll", L), muniFilter)}</select>
         </div>
-        <div class="fh-field">
+        <div class="fh-field" id="tour-trash">
             <label for="trash-filter-select">🗑️ ${t("trashLookupLabel", L)}</label>
             <select id="trash-filter-select" class="fh-select">${muniOptions(L, t("trashAll", L), trashTown)}</select>
         </div>
+        <div id="tour-nearest">
+        <div class="fh-section-title">📍 ${tr(L, "Find the nearest…", "近くの施設を探す")}</div>
+        <div class="fh-field">
+            <select id="nearest-cat" class="fh-select" aria-label="${tr(L, "What are you looking for?", "探したい施設")}">
+                ${NEAREST.map((c) => `<option value="${c.key}"${c.key === nearest.cat ? " selected" : ""}>${c.icon} ${tr(L, c.en, c.ja)}</option>`).join("")}
+            </select>
+        </div>
+        <div class="fh-btn-row">
+            <button type="button" class="fh-btn${nearestActive() === "locate" ? " is-active" : ""}" data-nearest="locate" aria-pressed="${nearestActive() === "locate"}">📍 ${tr(L, "Use my location", "現在地から")}</button>
+            <button type="button" class="fh-btn${nearestActive() === "pick" ? " is-active" : ""}" data-nearest="pick" aria-pressed="${nearestActive() === "pick"}">🗺️ ${tr(L, "Pick on map", "地図で選ぶ")}</button>
+        </div>
+        <div id="nearest-results" aria-live="polite">${nearestResultsHtml(L)}</div>
+        </div>
         <div class="fh-section-title">${t("layersLabel", L)}</div>
-        ${CATEGORIES.map((c) => `
-            <div class="fh-cat">
+        ${CATEGORIES.map((c, i) => `
+            <div class="fh-cat"${i === 0 ? ' id="tour-layers"' : ""}>
                 <div class="fh-cat-title">${t(c.key, L)}</div>
                 ${c.layers.map((key) => `
                     <label class="fh-check">
@@ -1326,11 +1473,12 @@ function renderPanel() {
                     <label class="fh-check fh-sub"><input type="checkbox" id="medical-multi"${medicalMultiOnly ? " checked" : ""}><span class="fh-check-text"><span>🌟 ${t("medicalMultiOnly", L)}</span></span></label>` : ""}`).join("")}
             </div>`).join("")}
         <div class="fh-section-title">${t("crowdsourceHeader", L)}</div>
-        <div class="fh-links">
+        <div class="fh-links" id="tour-links">
             <a class="fh-link is-survey" href="${FORM_LINKS.survey}" target="_blank" rel="noopener noreferrer">${t("surveyBtn", L)}</a>
             <a class="fh-link is-report" href="${FORM_LINKS.report}" target="_blank" rel="noopener noreferrer">${t("reportBtn", L)}</a>
             <a class="fh-link is-bug" href="${FORM_LINKS.bug}" target="_blank" rel="noopener noreferrer">${t("reportAppBtn", L)}</a>
-        </div>`;
+        </div>
+        <div class="fh-about-link"><button type="button" class="fh-linkbtn" data-about>ⓘ ${tr(L, "About & data sources", "このアプリについて・データの出典")}</button></div>`;
     panelEl.scrollTop = scroll;
     toggleBtn.textContent = t("mapControlsBtn", L);
     updateScaleHints();
@@ -1359,12 +1507,348 @@ function setMedicalMultiOnly(on) {
     updateScaleHints();
 }
 
+/* ==========================================================================
+   FIND THE NEAREST
+   Asks the layers themselves (queryFeatures with a distance), so it works whether or not a layer is
+   switched on. The search widens 3 -> 10 -> 30 -> 100 km until at least three are found.
+   Distances are straight-line.
+   ========================================================================== */
+
+const SEARCH_STEPS_KM = [3, 10, 30, 100];
+const RESULT_COUNT = 3;
+const medName = (a, L) => (L === "JA" ? a["名称"] : a.name_en || a["名称"]);
+const medDetail = (a, L) => (Number(a.multilingual) === 1 ? `🌟 ${tr(L, "Foreign-language support", "外国語対応")}` : "");
+const MED_OWN = { layer: "medical", own: true, name: medName, detail: medDetail }; // own: ignore the multilingual-only toggle's filter
+const NEAREST = [
+    { key: "hospital", icon: "🏥", en: "Hospital", ja: "病院", where: "facility_type = 'Hospital'", ...MED_OWN },
+    { key: "clinic", icon: "🩺", en: "Clinic", ja: "診療所", where: "facility_type = 'Clinic'", ...MED_OWN },
+    { key: "dental", icon: "🦷", en: "Dental clinic", ja: "歯科", where: "facility_type = 'Dental'", ...MED_OWN },
+    { key: "pharmacy", icon: "💊", en: "Pharmacy", ja: "薬局", where: "facility_type = 'Pharmacy'", ...MED_OWN },
+    { key: "multilingual", icon: "🌟", en: "Medical facility with foreign-language support", ja: "外国語対応の医療機関", where: "multilingual = 1", ...MED_OWN },
+    { key: "shelter", icon: "🛡️", en: "Emergency shelter", ja: "避難所", layer: "shelters", name: (a) => a.P20_002 },
+    { key: "police", icon: "👮", en: "Police box / station", ja: "交番・警察署", layer: "police", name: (a) => a.P18_001 },
+    { key: "post", icon: "✉️", en: "Post office", ja: "郵便局", layer: "post", name: (a) => a.P30_005 },
+    { key: "office", icon: "🏛️", en: "Town / city office", ja: "役場・市役所", layer: "municipal", name: (a) => a.P05_003 },
+    { key: "school", icon: "🏫", en: "School", ja: "学校", layer: "schools", name: (a, L) => (L === "JA" ? a.P29_004 : a.name_en || a.P29_004) },
+    { key: "station", icon: "🚉", en: "Train station", ja: "駅", layer: "railStations", name: (a, L) => (L === "JA" || !a.station_en ? `${a.N02_005}駅` : `${a.station_en} Station`) },
+    { key: "bus", icon: "🚌", en: "Bus stop", ja: "バス停", layer: "bus", name: (a) => a.P11_001 },
+    { key: "roadside", icon: "🚗", en: "Michi-no-Eki (roadside station)", ja: "道の駅", layer: "roadside", name: (a, L) => (L === "JA" ? a.P35_006 : a.name_en || a.P35_006) },
+    { key: "gas", icon: "⛽", en: "Gas station", ja: "ガソリンスタンド", layer: "gas", name: (a, L) => tr(L, "Gas station", "ガソリンスタンド"), detail: (a) => a.P07_002 || "" }
+];
+
+let nearest = { cat: "hospital", origin: null, source: null, results: [], status: "" }; // source: "locate" | "pick"
+let locating = false; // waiting for the browser's location answer
+
+// Which start-point button is lit: the one being waited on, otherwise the one the current results came from.
+const nearestActive = () => (pickingOrigin ? "pick" : locating ? "locate" : nearest.origin ? nearest.source : null);
+function syncNearestButtons() {
+    const active = nearestActive();
+    panelEl?.querySelectorAll("[data-nearest='locate'], [data-nearest='pick']").forEach((b) => {
+        const on = b.dataset.nearest === active;
+        b.classList.toggle("is-active", on);
+        b.setAttribute("aria-pressed", String(on));
+    });
+}
+
+const escHtml = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function distanceKm(lat1, lon1, lat2, lon2) {
+    const rad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+    return 6371 * 2 * Math.asin(Math.sqrt(a));
+}
+const formatDistance = (km) => (km < 1 ? `${Math.max(10, Math.round((km * 1000) / 10) * 10)} m` : `${km.toFixed(1)} km`);
+
+async function findNearest(cat, origin) {
+    const layer = layers[cat.layer];
+    const clauses = [cat.own ? "" : layer.definitionExpression, cat.where].filter(Boolean).map((w) => `(${w})`);
+    for (const km of SEARCH_STEPS_KM) {
+        const q = layer.createQuery();
+        q.geometry = { type: "point", longitude: origin.lon, latitude: origin.lat };
+        q.distance = km;
+        q.units = "kilometers";
+        q.spatialRelationship = "intersects";
+        q.where = clauses.join(" AND ") || "1=1";
+        q.outFields = ["*"];
+        q.returnGeometry = true;
+        q.outSpatialReference = { wkid: 4326 };
+        const { features } = await layer.queryFeatures(q);
+        const seen = new Set();
+        const list = [];
+        for (const f of features) {
+            const g = f.geometry;
+            if (!g || g.latitude === undefined) continue;
+            const name = String(cat.name(f.attributes, "EN") ?? "");
+            const key = `${name}|${g.latitude.toFixed(3)}|${g.longitude.toFixed(3)}`; // same place listed twice (e.g. a station on two lines)
+            if (seen.has(key)) continue;
+            seen.add(key);
+            list.push({ feature: f, lat: g.latitude, lon: g.longitude, km: distanceKm(origin.lat, origin.lon, g.latitude, g.longitude) });
+        }
+        list.sort((a, b) => a.km - b.km);
+        if (list.length >= RESULT_COUNT || km === SEARCH_STEPS_KM[SEARCH_STEPS_KM.length - 1]) return list.slice(0, RESULT_COUNT);
+    }
+    return [];
+}
+
+function nearestResultsHtml(L) {
+    const cat = NEAREST.find((c) => c.key === nearest.cat) || NEAREST[0];
+    let html = "";
+    if (nearest.status) html += `<div class="fh-note">${escHtml(nearest.status)}</div>`;
+    nearest.results.forEach((r, i) => {
+        const a = r.feature.attributes;
+        const name = cat.name(a, L) || "—";
+        const detail = cat.detail?.(a, L) || "";
+        const o = nearest.origin;
+        const dir = `https://www.google.com/maps/dir/?api=1${o ? `&origin=${o.lat},${o.lon}` : ""}&destination=${r.lat},${r.lon}&hl=${L === "JA" ? "ja" : "en"}`;
+        html += `
+        <div class="fh-result">
+            <span class="fh-result-num">${i + 1}</span>
+            <div class="fh-result-body">
+                <b>${escHtml(name)}</b>
+                <div class="fh-result-meta">${formatDistance(r.km)}${detail ? ` · ${escHtml(detail)}` : ""}</div>
+                <div class="fh-result-links">
+                    <button type="button" class="fh-linkbtn" data-nearest-go="${i}">${tr(L, "Show on map", "地図で見る")}</button> ·
+                    <a href="${dir}" target="_blank" rel="noopener noreferrer">🧭 ${tr(L, "Directions", "経路")}</a>
+                </div>
+            </div>
+        </div>`;
+    });
+    if (nearest.results.length) {
+        html += `<div class="fh-note">${tr(L, "Straight-line distances. Real travel time is longer, especially in winter.", "直線距離です。実際の移動時間は、特に冬は長くなります。")}</div>
+        <button type="button" class="fh-linkbtn" data-nearest="clear">${tr(L, "Clear", "クリア")}</button>`;
+    }
+    return html;
+}
+
+function renderNearest() {
+    const box = panelEl?.querySelector("#nearest-results");
+    if (box) box.innerHTML = nearestResultsHtml(currentLang);
+    syncNearestButtons();
+    syncChip();
+}
+
+function drawNearest() {
+    if (!nearestGfx) return;
+    nearestGfx.removeAll();
+    const { Graphic } = esri;
+    const o = nearest.origin;
+    if (o) {
+        nearestGfx.add(new Graphic({
+            geometry: { type: "point", longitude: o.lon, latitude: o.lat },
+            symbol: { type: "simple-marker", style: "circle", color: [0, 90, 200, 1], size: 14, outline: { color: [255, 255, 255, 1], width: 2.5 } }
+        }));
+    }
+    nearest.results.forEach((r, i) => {
+        const geometry = { type: "point", longitude: r.lon, latitude: r.lat };
+        nearestGfx.add(new Graphic({ geometry, symbol: { type: "simple-marker", style: "circle", color: [213, 94, 0, 1], size: 22, outline: { color: [255, 255, 255, 1], width: 2 } } }));
+        nearestGfx.add(new Graphic({ geometry, symbol: { type: "text", text: String(i + 1), color: [255, 255, 255, 1], font: { size: 11, weight: "bold" }, yoffset: -2.5 } }));
+    });
+}
+
+async function runNearest() {
+    const L = currentLang;
+    const cat = NEAREST.find((c) => c.key === nearest.cat) || NEAREST[0];
+    nearest.results = [];
+    nearest.status = tr(L, "Searching…", "検索中…");
+    renderNearest();
+    try {
+        nearest.results = await findNearest(cat, nearest.origin);
+        nearest.status = nearest.results.length ? "" : tr(L, `Nothing found within ${SEARCH_STEPS_KM[SEARCH_STEPS_KM.length - 1]} km.`, `${SEARCH_STEPS_KM[SEARCH_STEPS_KM.length - 1]} km以内に見つかりませんでした。`);
+    } catch (e) {
+        console.warn("Nearest search failed:", e);
+        nearest.status = tr(L, "The search failed. Please try again.", "検索に失敗しました。もう一度お試しください。");
+    }
+    drawNearest();
+    renderNearest();
+    fitNearest();
+    // On phones the panel would cover the markers: close it and let the chip bring the list back.
+    if (isMobile() && nearest.results.length) setPanelOpen(false);
+    syncChip();
+}
+
+const isMobile = () => window.matchMedia(MOBILE_QUERY).matches;
+
+// Zoom to the start point and all results with some breathing room.
+function fitNearest() {
+    const pts = [...(nearest.origin ? [{ lon: nearest.origin.lon, lat: nearest.origin.lat }] : []), ...nearest.results];
+    if (!pts.length) return;
+    const lons = pts.map((p) => p.lon), lats = pts.map((p) => p.lat);
+    const pad = 0.0015; // ~150 m, so a single point still gets a sensible extent
+    const ext = new esri.Graphic({ geometry: { type: "extent", xmin: Math.min(...lons) - pad, ymin: Math.min(...lats) - pad, xmax: Math.max(...lons) + pad, ymax: Math.max(...lats) + pad, spatialReference: { wkid: 4326 } } }).geometry;
+    view.goTo(ext.expand(1.6), { duration: 1000 }).catch(() => {});
+}
+
+// Floating "3 nearest" chip: shown on phones while results exist, the panel is closed and no popup is open.
+let chipEl = null;
+function syncChip() {
+    const show = view?.container && isMobile() && nearest.results.length && !panelOpen && !view.popup?.visible && !pickingOrigin;
+    if (!show) { chipEl?.remove(); chipEl = null; return; }
+    const cat = NEAREST.find((c) => c.key === nearest.cat) || NEAREST[0];
+    const L = currentLang;
+    const label = tr(L, `${cat.icon} ${nearest.results.length} nearest · tap for list`, `${cat.icon} 近くの${cat.ja} ${nearest.results.length}件 · タップで一覧`);
+    if (!chipEl) {
+        chipEl = document.createElement("button");
+        chipEl.type = "button";
+        chipEl.className = "fh-chip";
+        chipEl.addEventListener("click", () => {
+            setPanelOpen(true);
+            panelEl?.querySelector("#nearest-results")?.scrollIntoView({ block: "center" });
+        });
+        view.container.appendChild(chipEl);
+    }
+    chipEl.textContent = label;
+}
+
+function setNearestOrigin(lon, lat, source) {
+    nearest.origin = { lon, lat };
+    nearest.source = source;
+    runNearest();
+}
+
+function useMyLocation() {
+    const L = currentLang;
+    if (!navigator.geolocation) { nearest.status = tr(L, "Your browser can't share a location. Try \"Pick on map\".", "位置情報を取得できません。「地図で選ぶ」をお試しください。"); renderNearest(); return; }
+    nearest.status = tr(L, "Finding your location…", "現在地を取得中…");
+    locating = true;
+    pickingOrigin = false;
+    hideToast();
+    renderNearest();
+    navigator.geolocation.getCurrentPosition(
+        (pos) => { locating = false; setNearestOrigin(pos.coords.longitude, pos.coords.latitude, "locate"); },
+        () => { locating = false; nearest.status = tr(currentLang, "Couldn't get your location. Check the location permission, or try \"Pick on map\".", "現在地を取得できませんでした。位置情報の許可を確認するか、「地図で選ぶ」をお試しください。"); renderNearest(); },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+}
+
+function showToast(text, onCancel) {
+    hideToast();
+    toastEl = el("div", { style: "position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:60;background:#111827;color:#fff;padding:8px 8px 8px 14px;border-radius:999px;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;gap:10px;align-items:center;max-width:90%" },
+        el("span", { textContent: text }),
+        el("button", { type: "button", textContent: "✕", "aria-label": "Cancel", style: "background:transparent;border:0;color:#fff;font-size:15px;cursor:pointer", onclick: () => { pickingOrigin = false; hideToast(); syncNearestButtons(); } }));
+    view.container.appendChild(toastEl);
+}
+function hideToast() { toastEl?.remove(); toastEl = null; }
+
+function startPick() {
+    pickingOrigin = true;
+    locating = false;
+    syncNearestButtons();
+    showToast(tr(currentLang, "Tap the map to set your starting point", "地図をタップして出発地点を選択"));
+    if (window.matchMedia(MOBILE_QUERY).matches) setPanelOpen(false);
+}
+
+function showNearestResult(i) {
+    const r = nearest.results[i];
+    if (!r) return;
+    if (window.matchMedia(MOBILE_QUERY).matches) setPanelOpen(false);
+    view.goTo({ center: [r.lon, r.lat], zoom: 15 }, { duration: 900 })
+        .catch(() => {})
+        .then(() => view.openPopup({ features: [r.feature], location: r.feature.geometry }))
+        .catch(() => {});
+}
+
+function clearNearest() {
+    pickingOrigin = false;
+    locating = false;
+    hideToast();
+    nearest = { ...nearest, origin: null, source: null, results: [], status: "" };
+    nearestGfx?.removeAll();
+    renderPanel();
+    syncChip();
+}
+
+/* ==========================================================================
+   ABOUT & DATA SOURCES (opened from the link at the bottom of the control panel)
+   ========================================================================== */
+
+const KSJ = (code, tail) => `https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-${code}${tail ? `-${tail}` : ""}.html`;
+// [layers EN, layers JA, dataset code, edition, url]
+const MLIT_SOURCES = [
+    ["Municipal and subprefecture boundaries", "市区町村・振興局の境界", "N03", "2026", KSJ("N03", "2026")],
+    ["Municipal offices & public meeting facilities", "市町村役場等及び公的集会施設", "P05", "2022", KSJ("P05", "2022")],
+    ["Police stations & boxes", "警察署・交番", "P18", "2012", KSJ("P18")],
+    ["Post offices", "郵便局", "P30", "2013", KSJ("P30")],
+    ["Schools", "学校", "P29", "2023", KSJ("P29", "2023")],
+    ["Roadside stations (Michi-no-Eki)", "道の駅", "P35", "2018", KSJ("P35")],
+    ["Bus stops", "バス停留所", "P11", "2022", KSJ("P11", "2022")],
+    ["Gas stations", "燃料給油所", "P07", "2010", KSJ("P07", "2016")],
+    ["Emergency shelters", "避難施設", "P20", "2012", KSJ("P20")],
+    ["Snowfall statistics & snow-damage zones", "雪害指定区分・積雪統計", "A22-m", "2014", KSJ("A22", "m")],
+    ["Wildlife protection areas", "鳥獣保護区", "A15", "2015", KSJ("A15")],
+    ["Railway lines & stations", "鉄道（路線・駅）", "N02", "2025", KSJ("N02", "2025")]
+];
+let aboutEl = null;
+
+function closeAbout() {
+    aboutEl?.remove();
+    aboutEl = null;
+    document.removeEventListener("keydown", onAboutKey);
+}
+function onAboutKey(e) { if (e.key === "Escape") closeAbout(); }
+
+function openAbout() {
+    const L = currentLang;
+    const a = (url, label) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+    const html = `
+        <div class="fh-about-head"><h2 id="fh-about-title">${tr(L, "About & data sources", "このアプリについて・データの出典")}</h2><button type="button" class="fh-about-close" aria-label="${tr(L, "Close", "閉じる")}">✕</button></div>
+        <p>${tr(L,
+            "ForeignHokkaido is a bilingual map for foreign Assistant Language Teachers living in the Oshima and Hiyama subprefectures of Hokkaido. It was built as a University of Wisconsin–Madison Geography 778 practicum project by H. McBride in the Fall 2026 semester.",
+            "ForeignHokkaido は、北海道の渡島・檜山地域に住む外国人ALT向けの日英対応マップです。ウィスコンシン大学マディソン校 地理学778の実習プロジェクトとして、H. McBride が2026年秋学期に制作しました。")}</p>
+
+        <h3>${tr(L, "Japan National Land Numerical Information (MLIT)", "国土数値情報（国土交通省）")}</h3>
+        <p class="fh-about-note">${tr(L,
+            "Source: MLIT National Land Numerical Information Download Site (links below). Each layer was edited and processed (clipped to the study area, joined, translated) by ForeignHokkaido from the dataset named in the list. It is not an official MLIT product. Edition years come from the downloaded files and some are several years old.",
+            "出典：国土交通省国土数値情報ダウンロードサイト（下記各ページ）。以下の「国土数値情報」（国土交通省）をもとに、ForeignHokkaidoが編集・加工（範囲の切り出し・結合・英訳）して作成しました。国土交通省が作成した情報ではありません。年は取得したファイルの版で、数年前のものもあります。")}</p>
+        <ul class="fh-about-list">${MLIT_SOURCES.map(([en, ja, code, year, url]) =>
+            `<li>${a(url, tr(L, en, ja))} <span class="fh-about-code">${code}${year ? ` · ${year}` : ""}</span></li>`).join("")}</ul>
+
+        <h3>${tr(L, "Other sources", "その他の出典")}</h3>
+        <ul class="fh-about-list">
+            <li><b>${tr(L, "Landslide & avalanche risk areas", "山地災害危険地区（地すべり・雪崩）")}</b>: ${tr(L,
+                "Hokkaido Forestry Bureau, Soil Conservation Division, Mountain Disaster Hazard Area GIS data (end of 2020), CC BY 4.0. Clipped to the study area by ForeignHokkaido. ",
+                "北海道水産林務部林務局治山課「山地災害危険地区 GISデータ」（2020年末時点）、CC BY 4.0。調査範囲に合わせてForeignHokkaidoが切り出し。")}${a("https://ckan.hoda.jp/dataset/sanchisaigaikikenchiku_hokkaido", tr(L, "Dataset ↗", "データセット ↗"))}</li>
+            <li><b>${tr(L, "Medical facilities", "医療機関")}</b>: ${tr(L,
+                "Based on \"Hokkaido Medical Institutions List with Coordinates\" (道内医療機関一覧（位置情報付き）, data as of Feb 9, 2026), published by the Hokkaido Government DX Promotion Division on the Hokkaido Open Data Portal under CC BY, which adds coordinates to the Hokkaido Bureau of Health and Welfare (MHLW) medical institution list. Filtered to Oshima and Hiyama and matched with the Hokkaido list of facilities with foreign-language support by ForeignHokkaido. It may include closed or moved facilities. Check opening hours and language support by phone. ",
+                "北海道「道内医療機関一覧（位置情報付き）」（2026年2月9日現在、北海道経済部DX推進課、北海道オープンデータポータル、CC BY）をもとに作成。元データは厚生労働省北海道厚生局の医療機関一覧に位置情報を付与したものです。ForeignHokkaidoが渡島・檜山地域に絞り込み、北海道の外国語対応可能医療機関一覧と照合しました。閉院・移転した施設が含まれる場合があります。診療時間や対応言語は電話でご確認ください。")}${a("https://www.harp.lg.jp/opendata/dataset/1243.html", tr(L, "Dataset page ↗", "データセット ↗"))} ${a("https://www.pref.hokkaido.lg.jp/fs/1/0/7/7/4/3/0/4/_/iryoukikanenglish.pdf", tr(L, "Foreign-language list (PDF) ↗", "外国語対応リスト（PDF） ↗"))}</li>
+            <li><b>${tr(L, "Garbage rules", "ごみ分別")}</b>: ${tr(L,
+                "Each town's official website, checked November 2026. Rules change, so confirm with your town office or supervisor.",
+                "各自治体の公式サイト（2026年11月確認）。ルールは変更されることがあるため、役場や担当者にご確認ください。")}</li>
+            <li><b>${tr(L, "Ski areas", "スキー場")}</b>: ${tr(L,
+                "Compiled by ForeignHokkaido from town and resort websites. Each popup shows how well an entry was checked; some positions are approximate.",
+                "自治体・施設の公開情報をもとにForeignHokkaidoが作成。各ポップアップに確認状況を表示しており、位置が目安のものもあります。")}</li>
+            <li><b>${tr(L, "Community events & local interests", "コミュニティイベント・地域のおすすめ")}</b>: ${tr(L,
+                "Submitted by users through Esri Survey123. They are not verified.",
+                "ユーザーが Esri Survey123 で投稿した情報です。内容は確認されていません。")}</li>
+            <li><b>${tr(L, "Basemaps", "ベースマップ")}</b>: Esri, ${tr(L, "with the contributors listed at the bottom of the map.", "ほか、地図下部に表示のデータ提供者。")}</li>
+        </ul>
+
+        <h3>${tr(L, "Please note", "ご注意")}</h3>
+        <p class="fh-about-note">${tr(L,
+            "This map is a guide, not an official source. Locations and details can be out of date: please confirm with the facility or your town office before you rely on them, especially for emergencies. Straight-line distances are not travel times.",
+            "このマップは参考情報であり、公式情報ではありません。位置や内容が古い場合があります。特に緊急時は、利用前に施設や役場でご確認ください。距離は直線距離で、移動時間ではありません。")}</p>
+        <p>${a(FORM_LINKS.report, tr(L, "Report an error or add a place ↗", "誤りの報告・場所の追加 ↗"))}</p>`;
+    closeAbout();
+    aboutEl = el("div", { className: "fh-about-overlay" });
+    const card = el("div", { className: "fh-about", role: "dialog" });
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-labelledby", "fh-about-title");
+    card.innerHTML = html;
+    aboutEl.append(card);
+    aboutEl.addEventListener("click", (e) => { if (e.target === aboutEl || e.target.closest(".fh-about-close")) closeAbout(); });
+    document.addEventListener("keydown", onAboutKey);
+    document.body.append(aboutEl);
+    card.querySelector(".fh-about-close").focus();
+}
+
 export function setPanelOpen(open) {
     panelOpen = open;
     if (!panelEl) return;
+    if (!open) panelEl.scrollTop = 0; // reopen at the top (the tour scrolls the panel)
     panelEl.hidden = !open;
     toggleBtn.classList.toggle("is-open", open);
     toggleBtn.setAttribute("aria-expanded", String(open));
+    syncChip();
 }
 
 function buildControls() {
@@ -1383,13 +1867,27 @@ function buildControls() {
     container.append(toggleBtn, panelEl);
 
     toggleBtn.addEventListener("click", () => setPanelOpen(!panelOpen));
+    panelEl.addEventListener("click", (e) => {
+        const btn = e.target.closest?.("[data-nearest], [data-nearest-go], [data-about], [data-panel-close]");
+        if (!btn) return;
+        if (btn.dataset.about !== undefined) { openAbout(); return; }
+        if (btn.dataset.panelClose !== undefined) { setPanelOpen(false); return; }
+        if (btn.dataset.nearest === "locate") useMyLocation();
+        else if (btn.dataset.nearest === "pick") startPick();
+        else if (btn.dataset.nearest === "clear") clearNearest();
+        else if (btn.dataset.nearestGo !== undefined) showNearestResult(Number(btn.dataset.nearestGo));
+    });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && panelOpen) setPanelOpen(false); });
     panelEl.addEventListener("change", (e) => {
         const el = e.target;
         if (el.dataset?.layer) layers[el.dataset.layer].visible = el.checked;
         else if (el.id === "medical-multi") setMedicalMultiOnly(el.checked);
+        else if (el.id === "nearest-cat") { nearest.cat = el.value; if (nearest.origin) runNearest(); else renderNearest(); }
         else if (el.id === "muni-filter-select") applyMuniFilter(el.value);
-        else if (el.id === "trash-filter-select") showTrash(el.value);
+        else if (el.id === "trash-filter-select") {
+            showTrash(el.value);
+            if (el.value !== "ALL" && isMobile()) setPanelOpen(false); // on phones the panel would cover the garbage popup
+        }
     });
 
     renderPanel();
@@ -1434,8 +1932,8 @@ function refreshOpenPopup() {
     const popup = view?.popup;
     if (!popup?.visible || !popup.selectedFeature) return;
     const { selectedFeature, location } = popup;
-    popup.close();
-    popup.open({ features: [selectedFeature], location });
+    view.closePopup();
+    view.openPopup({ features: [selectedFeature], location });
 }
 
 export function setSeason(season) {
@@ -1455,10 +1953,11 @@ export function setLanguage(lang) {
     if (view) {
         applyLocale();
         applyBasemap();
-        SPECS.forEach((s) => { layers[s.key].title = t(s.labelKey, currentLang); const c = creditFor(s.key, currentLang); if (c) layers[s.key].copyright = c; applyPopup(s); });
+        SPECS.forEach((s) => { layers[s.key].title = t(s.labelKey, currentLang); relabelLegend(s.key); const c = creditFor(s.key, currentLang); if (c) layers[s.key].copyright = c; applyPopup(s); });
         renderPanel();
         setPanelOpen(panelOpen);
         refreshOpenPopup();
+        if (aboutEl) openAbout(); // keep an open About card in the new language
     }
     emit();
     return currentLang;
@@ -1470,8 +1969,12 @@ export function resetView() {
     trashTown = "ALL";
     showTrash("ALL");
     setMedicalMultiOnly(false);
-    renderPanel();
+    clearNearest();
+    view.closePopup();
+    // Back to the default layers for the current season (undoes any layers the user switched on or off)
+    SPECS.forEach((s) => { if (layers[s.key]) layers[s.key].visible = isBaseline(s.key, currentSeason); });
     applyMuniFilter("ALL");
+    renderPanel();
 }
 
 /* ==========================================================================
@@ -1481,13 +1984,14 @@ export function resetView() {
 export async function initMap(containerId, apiKey) {
     const [
         esriConfig, intl, EsriMap, MapView, FeatureLayer, GeoJSONLayer,
-        Basemap, geometryEngine, Legend, Expand, Zoom
+        Basemap, geometryEngine, Legend, Expand, Zoom, Graphic, GraphicsLayer
     ] = await load([
         "esri/config", "esri/intl", "esri/Map", "esri/views/MapView",
         "esri/layers/FeatureLayer", "esri/layers/GeoJSONLayer", "esri/Basemap",
-        "esri/geometry/geometryEngine", "esri/widgets/Legend", "esri/widgets/Expand", "esri/widgets/Zoom"
+        "esri/geometry/geometryEngine", "esri/widgets/Legend", "esri/widgets/Expand", "esri/widgets/Zoom",
+        "esri/Graphic", "esri/layers/GraphicsLayer"
     ]);
-    esri = { intl, Basemap, FeatureLayer, GeoJSONLayer, geometryEngine };
+    esri = { intl, Basemap, FeatureLayer, GeoJSONLayer, geometryEngine, Graphic, GraphicsLayer };
     if (apiKey) esriConfig.apiKey = apiKey;
 
     document.documentElement.lang = currentLang === "JA" ? "ja" : "en";
@@ -1496,36 +2000,76 @@ export async function initMap(containerId, apiKey) {
     map = new EsriMap();
     applyBasemap();
     map.addMany([...SPECS].sort((a, b) => a.z - b.z).map(createLayer));
+    watchLiveLayers();
+    townGfx = new GraphicsLayer({ id: "townHighlight", listMode: "hide", title: "Selected town" });
+    map.add(townGfx);
+    nearestGfx = new GraphicsLayer({ id: "nearest", listMode: "hide", title: "Nearest" });
+    map.add(nearestGfx);
 
     view = new MapView({
         container: containerId,
         map,
-        center: HOME.center,
-        zoom: HOME.zoom,
+        center: homeView().center,
+        zoom: homeView().zoom,
         ui: { components: ["attribution"] }
     });
 
     // Top-left stack: controls button + panel, zoom, (locate is added by location.js at index 2), legend
     view.ui.add(buildControls(), { position: "top-left", index: 0 });
     view.ui.add(new Zoom({ view }), { position: "top-left", index: 1 });
-    view.ui.add(new Expand({ view, content: new Legend({ view }), expandIcon: "legend", group: "top-left" }), { position: "top-left", index: 3 });
+    const legendExpand = new Expand({ view, content: new Legend({ view }), expandIcon: "legend", group: "top-left" });
+    view.ui.add(legendExpand, { position: "top-left", index: 3 });
+    view.when(() => legendExpand.container?.setAttribute?.("id", "fh-legend")); // lets the app tour point at it
 
     // Responsive popup docking and bottom padding (the header ribbon sits at the bottom on mobile)
     const applyBreakpoint = (bp) => {
         const mobile = bp === "xsmall" || bp === "small";
         view.padding = { bottom: mobile ? 96 : 0 };
+        view.ui.padding = { top: 15, left: 15, right: 15, bottom: 0 }; // default edge gaps, but no bottom gap: keeps the attribution at the very bottom, under the ribbon
         view.popup.dockEnabled = !mobile;
         view.popup.dockOptions = { buttonEnabled: false, breakpoint: false, position: "bottom-right" };
     };
     view.watch("scale", updateScaleHints);
+    view.watch("popup.visible", syncChip); // path watch: works even while the popup is lazily created
+    // Outline the town whose popup is showing; fall back to the filtered town (or nothing) otherwise.
+    view.watch("popup.selectedFeature", async (f) => {
+        const fallback = spatialFilter?.geometry ?? null;
+        if (f?.layer?.id !== "muniBoundaries") { drawTownHighlight(fallback); return; }
+        const ja = String(f.attributes?.N03_004 ?? "").trim();
+        const geometry = (ja && (await townGeometry(ja).catch(() => null))) || f.geometry;
+        if (view.popup.selectedFeature === f) drawTownHighlight(geometry);
+    });
     view.watch("widthBreakpoint", applyBreakpoint);
     applyBreakpoint(view.widthBreakpoint);
+
+    // "Pick on map" for the nearest-X tool: takes the next click and keeps it from opening a popup.
+    view.on("click", (event) => {
+        // Tapping a numbered result marker opens that place's popup (checked on screen so the default popup can be stopped in time).
+        if (!pickingOrigin && nearest.results.length) {
+            const hit = nearest.results.findIndex((r) => {
+                const p = view.toScreen(new esri.Graphic({ geometry: { type: "point", longitude: r.lon, latitude: r.lat } }).geometry); // needs a real Point
+                return p && Math.hypot(p.x - event.x, p.y - event.y) <= 16;
+            });
+            if (hit >= 0) {
+                event.stopPropagation();
+                const r = nearest.results[hit];
+                view.openPopup({ features: [r.feature], location: r.feature.geometry });
+                return;
+            }
+        }
+        if (!pickingOrigin) return;
+        event.stopPropagation();
+        pickingOrigin = false;
+        hideToast();
+        setNearestOrigin(event.mapPoint.longitude, event.mapPoint.latitude, "pick");
+        if (!isMobile()) setPanelOpen(true); // on phones the chip brings the list back after the search
+    });
 
     // Clicking a municipality polygon (when it is the topmost feature) zooms to it.
     view.on("click", async (event) => {
         if (window.matchMedia(MOBILE_QUERY).matches) setPanelOpen(false);
         const { results } = await view.hitTest(event);
-        const top = results.find((r) => r.graphic?.layer);
+        const top = results.find((r) => r.graphic?.layer && !["townHighlight", "nearest"].includes(r.graphic.layer.id));
         if (top?.graphic.layer.id === "muniBoundaries" && top.graphic.geometry?.extent) {
             view.goTo(top.graphic.geometry.extent.expand(1.2), { duration: 1200, easing: "in-out-cubic" });
         }
