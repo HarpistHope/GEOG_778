@@ -2001,7 +2001,7 @@ function refreshOpenPopup() {
      - areas (snow zones, hazards...): zoom in just enough to fit the whole area in the strip;
      - otherwise (already close): pan only.
    Areas zoom in or back out to fit (never beyond the starting view); points only zoom in. Towns and the garbage lookup already zoom on their own, so they are skipped. */
-const AUTO_PAN_SKIP = ["trash", "muniBoundaries", "townHighlight", "nearest"];
+const AUTO_PAN_SKIP = ["townHighlight", "nearest"]; // the nearest-place markers manage their own view
 const AUTO_ZOOM = { pointScale: 80000, minScale: 15000, margin: 0.85 }; // pointScale: 1:80,000 is about zoom 12
 let autoPanToken = 0;
 function panAboveMobilePopup(feature) {
@@ -2204,12 +2204,12 @@ export async function initMap(containerId, apiKey) {
         if (!isMobile()) setPanelOpen(true); // on phones the chip brings the list back after the search
     });
 
-    // Clicking a municipality polygon (when it is the topmost feature) zooms to it.
+    // Clicking a municipality polygon (when it is the topmost feature) zooms to it on desktop; on phones the popup-aware auto-zoom does it.
     view.on("click", async (event) => {
         if (window.matchMedia(MOBILE_QUERY).matches) setPanelOpen(false);
         const { results } = await view.hitTest(event);
         const top = results.find((r) => r.graphic?.layer && !["townHighlight", "nearest"].includes(r.graphic.layer.id));
-        if (currentSeason !== "winter" && top?.graphic.layer.id === "muniBoundaries" && top.graphic.geometry?.extent) {
+        if (!isMobile() && currentSeason !== "winter" && top?.graphic.layer.id === "muniBoundaries" && top.graphic.geometry?.extent) {
             view.goTo(top.graphic.geometry.extent.expand(1.2), { duration: 1200, easing: "in-out-cubic" });
         }
     });
