@@ -14,6 +14,7 @@ const homeView = (width = window.innerWidth) => ({
     center: HOME.center,
     zoom: window.matchMedia(MOBILE_QUERY).matches ? HOME.zoom - 1 : Math.min(HOME.zoom, Math.log2(0.62 * width)) // phones: one level out from desktop
 });
+let homeState = null; // {center, scale} captured from the real starting view
 const EASE = { duration: 1500, easing: "in-out-cubic" };
 const SERVICES = "https://services.arcgis.com/HRPe58bUyBqyyiCt/arcgis/rest/services";
 const TRASH_MUNI_FIELD = "N03_004"; // field on the trash layer holding the Japanese municipality name
@@ -1428,7 +1429,7 @@ async function applyMuniFilter(town, { zoom = true } = {}) {
         if (zoom && geometry.extent) view.goTo(geometry.extent.expand(1.15), EASE);
     }
     Object.values(layers).forEach((layer) => { if (layer.visible) syncFilter(layer); });
-    if (town === "ALL" && zoom) view.goTo(homeView(view.width), EASE);
+    if (town === "ALL" && zoom) view.goTo(homeState ? { center: homeState.center, scale: homeState.scale } : homeView(view.width), EASE);
 }
 
 async function showTrash(town) {
@@ -1999,7 +2000,7 @@ function refreshOpenPopup() {
      - points (ski areas, facilities...): zoom in to POINT_SCALE if the map is further out than that;
      - areas (snow zones, hazards...): zoom in just enough to fit the whole area in the strip;
      - otherwise (already close): pan only.
-   It never zooms OUT. Towns and the garbage lookup already zoom on their own, so they are skipped. */
+   Areas zoom in or back out to fit (never beyond the starting view); points only zoom in. Towns and the garbage lookup already zoom on their own, so they are skipped. */
 const AUTO_PAN_SKIP = ["trash", "muniBoundaries", "townHighlight", "nearest"];
 const AUTO_ZOOM = { pointScale: 80000, minScale: 15000, margin: 0.85 }; // pointScale: 1:80,000 is about zoom 12
 let autoPanToken = 0;
@@ -2021,13 +2022,15 @@ function panAboveMobilePopup(feature) {
         const e = g?.extent;
         if (e && e.width > 0 && e.height > 0) {
             const fitRes = Math.max(e.width / (view.width * AUTO_ZOOM.margin), e.height / (stripH * AUTO_ZOOM.margin));
-            const fitScale = Math.max(AUTO_ZOOM.minScale, view.scale * fitRes / r);
-            if (fitScale < scale) { scale = fitScale; where = e.center; }   // zoom in to fit the area
+            const maxScale = homeState?.scale ?? 1500000;   // never zoom out past the starting view
+            const fitScale = Math.min(maxScale, Math.max(AUTO_ZOOM.minScale, view.scale * fitRes / r));
+            // Zoom in OR back out so the whole area fits the strip (ignore tiny differences to avoid jitter)
+            if (Math.abs(fitScale / view.scale - 1) > 0.08) { scale = fitScale; where = e.center; }
         }
         where = where ?? view.popup.location ?? e?.center;
     }
     if (!where) return;
-    const zooming = scale < view.scale;
+    const zooming = scale !== view.scale;
     const c = view.toScreen(view.center);
     const pt = view.toScreen(where);
     if (!pt || !c) return;
@@ -2174,6 +2177,8 @@ export async function initMap(containerId, apiKey) {
     });
     view.watch("widthBreakpoint", applyBreakpoint);
     applyBreakpoint(view.widthBreakpoint);
+    // Remember the exact starting view so Reset Extent returns to precisely what the app opened with
+    view.when(() => { homeState = { center: view.center.clone(), scale: view.scale }; });
     watchAutoPan();
 
     // "Pick on Map" for the nearest-X tool: takes the next click and keeps it from opening a popup.
