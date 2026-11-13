@@ -1994,6 +1994,39 @@ function refreshOpenPopup() {
     view.openPopup({ features: [selectedFeature], location });
 }
 
+/* Phones: the popup card sits over the lower part of the map, so a tapped item can end up behind it.
+   When a popup opens, pan (never zoom) just far enough to bring the item into the visible strip above the card.
+   Towns and the garbage lookup already zoom on their own, so they are skipped. */
+const AUTO_PAN_SKIP = ["trash", "muniBoundaries", "townHighlight", "nearest"];
+let autoPanToken = 0;
+function panAboveMobilePopup(feature) {
+    const card = document.querySelector(".esri-popup__main-container");
+    if (!card || !view || !isMobile()) return;
+    const g = feature.geometry;
+    const where = g?.type === "point" ? g : (view.popup.location ?? g?.extent?.center);
+    if (!where) return;
+    const popupTop = card.getBoundingClientRect().top - view.container.getBoundingClientRect().top;
+    const minY = 60;                                  // below the Map Controls / zoom buttons
+    const maxY = popupTop - 28;                       // a little above the card
+    const pt = view.toScreen(where);
+    if (!pt || maxY < minY + 40) return;
+    const okX = pt.x > 70 && pt.x < view.width - 30;  // not under the left-hand buttons
+    if (okX && pt.y > minY && pt.y < maxY) return;    // already visible
+    const target = { x: okX ? pt.x : view.width / 2, y: (minY + maxY) / 2 };
+    const c = view.toScreen(view.center);
+    const next = view.toMap({ x: c.x - (target.x - pt.x), y: c.y - (target.y - pt.y) });
+    if (next) view.goTo({ center: next }, { duration: 450, easing: "ease-in-out" }).catch(() => {});
+}
+function watchAutoPan() {
+    view.watch("popup.selectedFeature", (f) => {
+        if (!f || !isMobile() || AUTO_PAN_SKIP.includes(f.layer?.id)) return;
+        const token = ++autoPanToken;
+        setTimeout(() => { // wait for the card to finish rendering so its height is real
+            if (token === autoPanToken && view.popup?.visible && view.popup.selectedFeature === f) panAboveMobilePopup(f);
+        }, 350);
+    });
+}
+
 /* In winter the boundary lines are only background: they must not catch taps meant for the snow zones,
    avalanche areas or ski resorts underneath. (Switch to Summer Mode to tap a town for its summary.) */
 const WINTER_NO_POPUP = ["muniBoundaries", "oshhiBoundaries"];
@@ -2108,6 +2141,7 @@ export async function initMap(containerId, apiKey) {
     });
     view.watch("widthBreakpoint", applyBreakpoint);
     applyBreakpoint(view.widthBreakpoint);
+    watchAutoPan();
 
     // "Pick on Map" for the nearest-X tool: takes the next click and keeps it from opening a popup.
     view.on("click", (event) => {
