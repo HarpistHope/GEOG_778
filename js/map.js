@@ -1995,27 +1995,53 @@ function refreshOpenPopup() {
 }
 
 /* Phones: the popup card sits over the lower part of the map, so a tapped item can end up behind it.
-   When a popup opens, pan (never zoom) just far enough to bring the item into the visible strip above the card.
-   Towns and the garbage lookup already zoom on their own, so they are skipped. */
+   When a popup opens, bring the item into the visible strip above the card:
+     - points (ski areas, facilities...): zoom in to POINT_SCALE if the map is further out than that;
+     - areas (snow zones, hazards...): zoom in just enough to fit the whole area in the strip;
+     - otherwise (already close): pan only.
+   It never zooms OUT. Towns and the garbage lookup already zoom on their own, so they are skipped. */
 const AUTO_PAN_SKIP = ["trash", "muniBoundaries", "townHighlight", "nearest"];
+const AUTO_ZOOM = { pointScale: 80000, minScale: 15000, margin: 0.85 }; // pointScale: 1:80,000 is about zoom 12
 let autoPanToken = 0;
 function panAboveMobilePopup(feature) {
     const card = document.querySelector(".esri-popup__main-container");
     if (!card || !view || !isMobile()) return;
     const g = feature.geometry;
-    const where = g?.type === "point" ? g : (view.popup.location ?? g?.extent?.center);
-    if (!where) return;
     const popupTop = card.getBoundingClientRect().top - view.container.getBoundingClientRect().top;
     const minY = 60;                                  // below the Map Controls / zoom buttons
     const maxY = popupTop - 28;                       // a little above the card
-    const pt = view.toScreen(where);
-    if (!pt || maxY < minY + 40) return;
-    const okX = pt.x > 70 && pt.x < view.width - 30;  // not under the left-hand buttons
-    if (okX && pt.y > minY && pt.y < maxY) return;    // already visible
-    const target = { x: okX ? pt.x : view.width / 2, y: (minY + maxY) / 2 };
+    if (maxY < minY + 40) return;
+    const stripH = maxY - minY;
+    const r = view.resolution;                        // map units per pixel now
+    let where, scale = view.scale;
+    if (g?.type === "point") {
+        where = g;
+        if (scale > AUTO_ZOOM.pointScale) scale = AUTO_ZOOM.pointScale;
+    } else {
+        const e = g?.extent;
+        if (e && e.width > 0 && e.height > 0) {
+            const fitRes = Math.max(e.width / (view.width * AUTO_ZOOM.margin), e.height / (stripH * AUTO_ZOOM.margin));
+            const fitScale = Math.max(AUTO_ZOOM.minScale, view.scale * fitRes / r);
+            if (fitScale < scale) { scale = fitScale; where = e.center; }   // zoom in to fit the area
+        }
+        where = where ?? view.popup.location ?? e?.center;
+    }
+    if (!where) return;
+    const zooming = scale < view.scale;
     const c = view.toScreen(view.center);
-    const next = view.toMap({ x: c.x - (target.x - pt.x), y: c.y - (target.y - pt.y) });
-    if (next) view.goTo({ center: next }, { duration: 450, easing: "ease-in-out" }).catch(() => {});
+    const pt = view.toScreen(where);
+    if (!pt || !c) return;
+    if (!zooming) {
+        const okX = pt.x > 70 && pt.x < view.width - 30;           // not under the left-hand buttons
+        if (okX && pt.y > minY && pt.y < maxY) return;              // already visible
+    }
+    const target = { x: view.width / 2, y: (minY + maxY) / 2 };
+    if (!zooming && pt.x > 70 && pt.x < view.width - 30) target.x = pt.x;   // pan only: keep the sideways position
+    const r2 = r * (scale / view.scale);              // resolution after the move
+    const next = where.clone();
+    next.x = where.x + (c.x - target.x) * r2;
+    next.y = where.y + (target.y - c.y) * r2;
+    view.goTo({ center: next, scale }, { duration: 600, easing: "ease-in-out" }).catch(() => {});
 }
 function watchAutoPan() {
     view.watch("popup.selectedFeature", (f) => {
@@ -2111,6 +2137,13 @@ export async function initMap(containerId, apiKey) {
         map,
         center: homeView().center,
         zoom: homeView().zoom,
+        // Keep people from drifting far from the study area. The box is generous (all of southern Hokkaido plus a wide margin)
+        // so the starting view always fits; to loosen it, widen xmin/xmax/ymin/ymax. Rotation is off so a two-finger twist can't turn the map.
+        constraints: {
+            geometry: { type: "extent", xmin: 135.5, ymin: 39.0, xmax: 145.5, ymax: 45.0, spatialReference: { wkid: 4326 } },
+            minZoom: 6,
+            rotationEnabled: false
+        },
         ui: { components: ["attribution"] }
     });
 
