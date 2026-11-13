@@ -30,7 +30,7 @@ export const translations = {
         layerGas: "Gas Stations",
         layerShelters: "Emergency Shelters",
         layerWildlife: "Wildlife Reserves",
-        layerSnow: "Snow Hazard Zone Classifications",
+        layerSnow: "Snow Zones & Statistics",
         layerMuniBoundaries: "Municipal Boundaries",
         layerOshHiBoundaries: "Subprefectural Boundaries",
         layerRailStations: "Railway Stations",
@@ -96,7 +96,7 @@ export const translations = {
         layerGas: "ガソリンスタンド",
         layerShelters: "避難所・防災施設",
         layerWildlife: "鳥獣保護区",
-        layerSnow: "豪雪地帯区分",
+        layerSnow: "豪雪地帯区分・積雪統計",
         layerMuniBoundaries: "市町村境界線",
         layerOshHiBoundaries: "振興局境界線",
         layerRailStations: "鉄道駅",
@@ -146,7 +146,7 @@ export const tourSteps = {
         { title: "Layers", text: "Tick a layer to see it on the map. Under Medical, the 🌟 box shows only places with foreign-language support, and under Community Events, ⏳ hides events that have already happened. Busy layers like bus stops appear as you zoom in.", target: "#tour-layers", panel: true },
         { title: "Community", text: "Know about an upcoming community event or a favorite local spot? Add it here and it will show up on the map in a few minutes. You can also report a problem with the app. Each button opens a form in a new tab.", target: "#tour-links", panel: true },
         { title: "Legend", text: "Not sure what a symbol means? Open the Legend. Please note that only the layers you have turned on will be listed.", target: "#fh-legend, .esri-ui-top-left .esri-expand" },
-        { title: "Winter Mode", text: "Switch on Winter Mode to see regional snow statistics, avalanche zones, and ski areas.", target: "#btn-season-toggle" },
+        { title: "Winter Mode", text: "Switch on Winter Mode to see snow zones and snowfall statistics, avalanche zones, and ski areas.", target: "#btn-season-toggle" },
         { title: "Reset Extent", text: "Lost? Tap here to zoom back out to the whole region and clear any filters.", target: "#btn-reset-view" }
     ],
     JA: [
@@ -159,7 +159,7 @@ export const tourSteps = {
         { title: "レイヤー", text: "チェックを入れると地図に表示されます。「医療施設」の🌟は外国語対応の施設だけを、「地域のイベント」の⏳は開催済みのイベントを非表示にします。バス停など数の多いレイヤーは、拡大すると表示されます。", target: "#tour-layers", panel: true },
         { title: "コミュニティ", text: "イベントやおすすめの場所を知っていたら、ここから投稿してみてください。数分後に地図に表示されます。アプリの不具合の報告もできます。フォームは新しいタブで開きます。", target: "#tour-links", panel: true },
         { title: "凡例", text: "記号の意味が分からないときは「凡例」を開いてください。表示中のレイヤーだけが並びます。", target: "#fh-legend, .esri-ui-top-left .esri-expand" },
-        { title: "冬季モード", text: "冬季モードをオンにすると、積雪統計、雪崩危険区域、スキー場が表示されます。冬の備えにどうぞ。", target: "#btn-season-toggle" },
+        { title: "冬季モード", text: "冬季モードをオンにすると、豪雪地帯区分と積雪統計、雪崩危険区域、スキー場が表示されます。冬の備えにどうぞ。", target: "#btn-season-toggle" },
         { title: "全域表示", text: "迷ったらここ。南西北海道の全体表示に戻り、絞り込みも解除します。", target: "#btn-reset-view" }
     ]
 };

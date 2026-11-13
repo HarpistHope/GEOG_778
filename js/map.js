@@ -1,5 +1,5 @@
 // map.js — ForeignHokkaido map engine
-// ArcGIS Maps SDK 4.26 is loaded from the CDN <script> in index.html (AMD), so every
+// ArcGIS Maps SDK 4.30 is loaded from the CDN <script> in index.html (AMD), so every
 // SDK class is obtained through the global `require`, never through ES-module imports.
 
 import { t, municipalities, districts, subprefectures } from "./localization.js";
@@ -529,29 +529,30 @@ const POPUPS = {
     snow: (L) => {
         const stat = (name, field, unit) => E(name,
             `var n = num(${G(field)}); if (IsEmpty(n) || n == 99999999) { return ${q(tr(L, "No historical statistics available", "過去の統計データなし"))}; } return Text(Round(n, 1)) + ' ${unit}';`);
-        const cls = `var n = num(${G("A22_100005")}); var c = ''; if (!IsEmpty(n)) { c = Text(n); } `;
+        const cls = `var n = num(${G("A22_009")}); var c = ''; if (!IsEmpty(n)) { c = Text(n); } `;
         return {
-            title: X("muni"),
+            title: tr(L, "Snow Zone & Statistics: ", "豪雪地帯区分・積雪統計：") + X("muni"),
             content: body(
                 row(tr(L, "Municipality", "自治体名"), X("muni")) +
                 lead(X("cls"), "info") +
-                note(X("clsDesc")) + HR +
+                note(X("clsDesc")) + "<br>" + HR + "<br>" +
                 `<b>${tr(L, "Climate averages", "気候平均値")}:</b>` +
                 `<ul style="margin:4px 0 0 18px;padding:0"><li>${tr(L, "Avg. minimum temperature", "平均最低気温")}: ${X("temp")}</li>` +
                 `<li>${tr(L, "Avg. total snowfall", "平均年間降雪量")}: ${X("snow")}</li>` +
                 `<li>${tr(L, "Avg. maximum snow depth", "平均最大積雪深")}: ${X("depth")}</li></ul>` +
-                srcNote(L, 2014)
+                "<br>" + note(tr(L,
+                    "A town can contain both classes.<br>Classes: MLIT 2016. Averages: MLIT 2014 records, averaged by ForeignHokkaido.<br>Source: MLIT National Land Numerical Information. Details may have changed.",
+                    "1つの町に両方の区分が含まれることがあります。<br>区分：国土数値情報（2016年）。平均値：国土数値情報（2014年）の記録をForeignHokkaidoが平均。<br>出典：国土数値情報（国土交通省）。最新の情報と異なる場合があります。"))
             ),
             expressionInfos: [
                 E("muni", muniNameBody(L, "A22_100004")),
                 E("cls", `${cls} return ${decodePairs("c", [
-                    ["1", tr(L, "Special Heavy Snow Zone (Class 1)", "特別豪雪地帯")],
-                    ["2", tr(L, "Heavy Snow Zone (Class 2)", "豪雪地帯")],
-                    ["9", tr(L, "Other designated snow area (Class 9)", "その他の指定地域（区分9）")]
-                ], q(tr(L, "Not designated", "指定なし")))};`),
+                    ["2", tr(L, "Special Heavy Snow Zone (特別豪雪地帯)", "特別豪雪地帯")],
+                    ["1", tr(L, "Heavy Snow Zone (豪雪地帯)", "豪雪地帯")]
+                ], q(tr(L, "Classification not available", "区分の情報なし")))};`),
                 E("clsDesc", `${cls} return ${decodePairs("c", [
-                    ["1", tr(L, "Designated under Japan's heavy-snowfall area law as a special zone with the most severe winters.", "豪雪地帯対策特別措置法に基づく、特に積雪の厳しい地域です。")],
-                    ["2", tr(L, "Designated under Japan's heavy-snowfall area law.", "豪雪地帯対策特別措置法に基づく豪雪地帯です。")]
+                    ["2", tr(L, "The higher class under Japan's Heavy Snowfall Areas Act: snow is especially deep and cuts off road traffic for long periods, seriously disrupting daily life.", "豪雪地帯対策特別措置法の上位区分。積雪が特に深く、長期間道路交通が途絶して生活に著しい支障が出る地域です。")],
+                    ["1", tr(L, "Designated by the national government under Japan's Heavy Snowfall Areas Act, based on snow depth and other conditions. All of Hokkaido is designated.", "豪雪地帯対策特別措置法に基づき、積雪の度などを考慮して国が指定した地域です。北海道は全域が指定されています。")]
                 ], q(""))};`),
                 stat("temp", "AvgMinTemp", "°C"), stat("snow", "AvgTotSnow", "cm"), stat("depth", "AvgMaxDept", "cm")
             ]
@@ -1043,12 +1044,11 @@ const RENDERERS = {
     municipality: single({ type: "simple-fill", color: [0, 0, 0, 0.03], outline: { color: [90, 90, 90, 0.85], width: 1, style: "dash" } }),
     trash: single(fill(C.sky, 0.22, C.blue, 2.6)),                       // translucent highlight for the garbage lookup
     snow: {
-        type: "unique-value", field: "A22_100005",                       // one hue, three lightness steps
+        type: "unique-value", field: "A22_009",                           // one hue, two lightness steps (1 = heavy, 2 = special)
         defaultSymbol: fill([200, 220, 240], 0.3, [100, 100, 100], 1),
         uniqueValueInfos: [
-            { value: "1", label: "Special Heavy Snow Zone (特別豪雪地帯)", symbol: fill([25, 60, 120], 0.5, [10, 30, 80], 1.6) },
-            { value: "2", label: "Heavy Snow Zone (豪雪地帯)", symbol: fill([65, 125, 190], 0.4, [30, 80, 140], 1.3) },
-            { value: "9", label: "Other designated area (指定地域)", symbol: fill([140, 190, 230], 0.35, [70, 130, 180], 1.1) }
+            { value: "2", label: "Special Heavy Snow Zone (特別豪雪地帯)", symbol: fill([25, 60, 120], 0.5, [10, 30, 80], 1.6) },
+            { value: "1", label: "Heavy Snow Zone (豪雪地帯)", symbol: fill([140, 190, 230], 0.35, [70, 130, 180], 1.1) }
         ]
     },
     avalanche: single(fill(C.vermillion, 0.3, C.vermillion, 1.3, { style: "forward-diagonal" })),
@@ -1097,7 +1097,7 @@ const FS = `${SERVICES}`;
    submissions appear without a page reload. Minutes; 0 turns it off. */
 const LIVE_REFRESH_MIN = 1;
 const SPECS = [
-    feature("snow", "layerSnow", 10, `${FS}/ForeignHokkaido_OshimaHiyama_SnowStats/FeatureServer/0`, { props: { renderer: RENDERERS.snow }, popup: POPUPS.snow }),
+    feature("snow", "layerSnow", 10, `${FS}/ForeignHokkaido_OshimaHiyama_SnowStats/FeatureServer`, { props: { renderer: RENDERERS.snow }, popup: POPUPS.snow }),
     geojson("landslide", "layerLandslide", 11, "datasets/oshima_hiyama_landslides.geojson", { props: { definitionExpression: "hazard_code = 'LANDSLIDE'", renderer: RENDERERS.landslide }, popup: POPUPS.landslide }),
     geojson("avalanche", "layerAvalanche", 12, "datasets/oshima_hiyama_avalanches.geojson", { props: { definitionExpression: "hazard_code = 'AVALANCHE'", renderer: RENDERERS.avalanche }, popup: POPUPS.avalanche }),
     // Garbage lookup: not in the layer list. The search box in the panel is the only way to show it.
@@ -1125,7 +1125,7 @@ const SPEC = Object.fromEntries(SPECS.map((s) => [s.key, s]));
 /* ---- Attribution -----------------------------------------------------------
    Shown in the map's attribution bar (bottom edge) while the layer is visible.
    Identical strings are merged by the SDK, so every MLIT layer uses the same text.
-   Layers with no entry (snow, hazards, medical) show nothing; add one when the source is settled.
+   Layers with no entry show nothing; add one when the source is settled.
    -------------------------------------------------------------------------- */
 const MLIT_CREDIT = ["MLIT National Land Numerical Information", "国土数値情報（国土交通省）"];
 const HOKKAIDO_HAZARD_CREDIT = ["Hazard areas: Hokkaido Forestry Bureau, Mountain Disaster Hazard Areas (CC BY 4.0)", "危険地区：北海道水産林務部林務局治山課「山地災害危険地区」（CC BY 4.0）"];
@@ -1148,9 +1148,9 @@ const creditFor = (key, L) => { const c = CREDITS[key]; return c ? (L === "JA" ?
    Layers in neither list (medical, schools, ...) keep whatever the user chose.
    ALWAYS_ON layers are visible from the start in both seasons.
    -------------------------------------------------------------------------- */
-const ALWAYS_ON = ["oshhiBoundaries"];
+const ALWAYS_ON = [];   // layers on in both seasons (none now: the subprefecture lines are summer-only)
 const SEASON_LAYERS = {
-    summer: ["muniBoundaries"],
+    summer: ["muniBoundaries", "oshhiBoundaries"],
     winter: ["snow", "avalanche", "ski"]
 };
 const isBaseline = (key, season) => ALWAYS_ON.includes(key) || SEASON_LAYERS[season].includes(key);
@@ -1294,11 +1294,30 @@ function auditPopupFields(spec) {
 
 const sqlLike = (town) => `${TRASH_MUNI_FIELD} LIKE '%${town.replace(/'/g, "''")}%'`;
 
+/* Polygon layers (snow zones, hazards, wildlife) that merely touch the selected town's border would pass an
+   "intersects" test, so the neighbouring towns' polygons showed up too. For polygon layers the town outline is
+   shrunk by this many metres first; points and lines still use the full outline. 0 turns the shrinking off. */
+const POLYGON_FILTER_INSET_M = 400;
+const insetCache = new WeakMap();
+function insetGeometry(geometry) {
+    if (!geometry || !POLYGON_FILTER_INSET_M) return geometry;
+    if (insetCache.has(geometry)) return insetCache.get(geometry);
+    let inset = geometry;
+    try {
+        const shrunk = esri.geometryEngine.geodesicBuffer(geometry, -POLYGON_FILTER_INSET_M, "meters");
+        if (shrunk && !shrunk.isEmpty?.() && shrunk.rings?.length) inset = shrunk; // tiny towns: keep the full outline
+    } catch (e) { console.warn("Could not shrink the town outline:", e); }
+    insetCache.set(geometry, inset);
+    return inset;
+}
+
 async function syncFilter(layer) {
     if (layer.id === "trash") return; // the garbage highlight is driven only by its own search
     try {
         const layerView = await view.whenLayerView(layer);
-        layerView.filter = spatialFilter;
+        layerView.filter = spatialFilter && layer.geometryType === "polygon"
+            ? { geometry: insetGeometry(spatialFilter.geometry), spatialRelationship: spatialFilter.spatialRelationship }
+            : spatialFilter;
     } catch { /* layer failed or has no view yet */ }
 }
 
@@ -1810,7 +1829,8 @@ const MLIT_SOURCES = [
     ["Bus stops", "バス停留所", "P11", "2022", KSJ("P11", "2022")],
     ["Gas stations", "燃料給油所", "P07", "2010", KSJ("P07", "2016")],
     ["Emergency shelters", "避難施設", "P20", "2012", KSJ("P20")],
-    ["Snowfall statistics & snow-damage zones", "雪害指定区分・積雪統計", "A22-m", "2014", KSJ("A22", "m")],
+    ["Snowfall, snow depth & temperature statistics", "積雪・降雪・気温の統計", "A22-m", "2014", KSJ("A22", "m")],
+    ["Heavy snow zone classes (Heavy / Special Heavy)", "豪雪地帯の区分（豪雪地帯・特別豪雪地帯）", "A22", "2016", KSJ("A22", "2016")],
     ["Wildlife protection areas", "鳥獣保護区", "A15", "2015", KSJ("A15")],
     ["Railway lines & stations", "鉄道（路線・駅）", "N02", "2025", KSJ("N02", "2025")]
 ];
@@ -1974,12 +1994,20 @@ function refreshOpenPopup() {
     view.openPopup({ features: [selectedFeature], location });
 }
 
+/* In winter the boundary lines are only background: they must not catch taps meant for the snow zones,
+   avalanche areas or ski resorts underneath. (Switch to Summer Mode to tap a town for its summary.) */
+const WINTER_NO_POPUP = ["muniBoundaries", "oshhiBoundaries"];
+function applySeasonPopups() {
+    WINTER_NO_POPUP.forEach((k) => { if (layers[k]) layers[k].popupEnabled = currentSeason !== "winter"; });
+}
+
 export function setSeason(season) {
     currentSeason = season === "winter" ? "winter" : "summer";
     const next = currentSeason;
     const prev = next === "winter" ? "summer" : "winter";
     SEASON_LAYERS[prev].filter((k) => !SEASON_LAYERS[next].includes(k)).forEach((k) => { if (layers[k]) layers[k].visible = false; });
     SEASON_LAYERS[next].forEach((k) => { if (layers[k]) layers[k].visible = true; });
+    applySeasonPopups();
     applyBasemap();
     emit();
 }
@@ -2109,7 +2137,7 @@ export async function initMap(containerId, apiKey) {
         if (window.matchMedia(MOBILE_QUERY).matches) setPanelOpen(false);
         const { results } = await view.hitTest(event);
         const top = results.find((r) => r.graphic?.layer && !["townHighlight", "nearest"].includes(r.graphic.layer.id));
-        if (top?.graphic.layer.id === "muniBoundaries" && top.graphic.geometry?.extent) {
+        if (currentSeason !== "winter" && top?.graphic.layer.id === "muniBoundaries" && top.graphic.geometry?.extent) {
             view.goTo(top.graphic.geometry.extent.expand(1.2), { duration: 1200, easing: "in-out-cubic" });
         }
     });
