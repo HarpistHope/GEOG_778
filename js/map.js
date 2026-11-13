@@ -42,6 +42,8 @@ let townGfx = null;            // outline of the selected / filtered municipalit
 let nearestGfx = null;         // graphics layer holding the "you are here" and numbered result markers
 let pickingOrigin = false;     // true while waiting for the user to tap the map
 let toastEl = null;
+const HIDE_PAST_DEFAULT = true;   // community events: hide ones that already took place unless the user turns it off
+let hidePastEvents = HIDE_PAST_DEFAULT;
 let medicalMultiOnly = false; // "multilingual clinics only" toggle under the medical layer
 let muniFilter = "ALL";        // value of the municipality filter dropdown
 let trashTown = "ALL";         // value of the trash lookup dropdown
@@ -1013,15 +1015,27 @@ const marker = (style, color, size, outline = WHITE, width = 1.25, extra = {}) =
 const fill = (color, alpha, outlineColor = color, width = 1.2, extra = {}) =>
     ({ type: "simple-fill", color: rgba(color, alpha), outline: { color: rgba(outlineColor, 0.9), width }, ...extra });
 const single = (symbol) => ({ type: "simple", symbol });
+/* An emoji as a map symbol: drawn once onto a canvas and used as a picture marker. The look follows the device's
+   emoji font. If canvas is unavailable the old vector calendar is used instead. */
+function emojiMarker(emoji, px = 24, yoffset = 0) {
+    try {
+        const scale = 2, size = px * scale, c = document.createElement("canvas");
+        c.width = c.height = size;
+        const g = c.getContext("2d");
+        g.font = `${Math.round(size * 0.8)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+        g.textAlign = "center"; g.textBaseline = "middle";
+        g.shadowColor = "rgba(0,0,0,0.35)"; g.shadowBlur = 3 * scale; g.shadowOffsetY = scale;
+        g.fillText(emoji, size / 2, size / 2 + size * 0.04);
+        return { type: "picture-marker", url: c.toDataURL("image/png"), width: `${px}px`, height: `${px}px`, yoffset };
+    } catch (e) {
+        return marker("path", C.yellow, 20, [110, 95, 0, 1], 1.2, { path: CALENDAR });
+    }
+}
 
-const starPath = (R = 10, r = 4.3) => {
-    const pts = Array.from({ length: 10 }, (_, i) => {
-        const a = -Math.PI / 2 + (i * Math.PI) / 5, rad = i % 2 ? r : R;
-        return `${(rad * Math.cos(a)).toFixed(2)} ${(rad * Math.sin(a)).toFixed(2)}`;
-    });
-    return `M ${pts.join(" L ")} Z`;
-};
-const HEART = "M 0 -4 C -2 -10 -12 -8 -10 0 C -9 4 -3 8 0 12 C 3 8 9 4 10 0 C 12 -8 2 -10 0 -4 Z";
+// Marker outlines (SVG paths centred on 0,0). Holes are wound the opposite way so they stay see-through.
+const CALENDAR = "M -10 -7 H 10 V 10 H -10 Z M -6.5 -11 H -3.5 V -5 H -6.5 Z M 3.5 -11 H 6.5 V -5 H 3.5 Z " +
+    "M -8 -3 V -1.6 H 8 V -3 Z M -7 1.5 V 4.5 H -3.5 V 1.5 Z M -1.75 1.5 V 4.5 H 1.75 V 1.5 Z M 3.5 1.5 V 4.5 H 7 V 1.5 Z";
+const PIN = "M 0 12 C -2 8 -9 3 -9 -3 A 9 9 0 1 1 9 -3 C 9 3 2 8 0 12 Z M 0 -6.5 A 3.5 3.5 0 1 0 0 0.5 A 3.5 3.5 0 1 0 0 -6.5 Z";
 
 const RENDERERS = {
     // --- polygons ---
@@ -1054,8 +1068,8 @@ const RENDERERS = {
     roadside: single(marker("diamond", C.orange, 13, [120, 75, 0, 1], 1.25)),
     gas: single(marker("square", C.yellow, 9, [80, 70, 0, 1], 1.25)),
     ski: single(marker("triangle", C.purple, 13, [100, 40, 75, 1], 1.25)),
-    communityEvents: single(marker("path", C.yellow, 20, [110, 95, 0, 1], 1.2, { path: starPath() })),
-    localInterests: single(marker("path", C.purple, 17, [100, 40, 75, 1], 1.1, { path: HEART })),
+    communityEvents: single(emojiMarker("📅", 24)),
+    localInterests: single(emojiMarker("📍", 24, 9)),
     medical: {
         type: "unique-value", field: "facility_type",                    // one color, four shapes
         defaultSymbol: marker("circle", [120, 120, 120], 8),
@@ -1198,8 +1212,10 @@ function refreshIfStale(layer) {
 function watchLiveLayers() {
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState !== "visible") return;
+        applyEventsFilter();
         Object.values(layers).forEach((l) => { if (l?.visible) refreshIfStale(l); });
     });
+    setInterval(applyEventsFilter, 10 * 60 * 1000); // slide the "already took place" cutoff during long sessions
 }
 
 function createLayer(spec) {
@@ -1232,6 +1248,7 @@ function createLayer(spec) {
             if (spec.byGeometry?.[layer.geometryType]) layer.renderer = spec.byGeometry[layer.geometryType];
             applyPopup(spec);
             auditPopupFields(spec);
+            if (spec.key === "communityEvents") applyEventsFilter();
         },
         (err) => console.warn(`[layer] "${spec.key}" failed to load:`, err?.message || err)
     );
@@ -1449,15 +1466,15 @@ function renderPanel() {
             <select id="trash-filter-select" class="fh-select">${muniOptions(L, t("trashAll", L), trashTown)}</select>
         </div>
         <div id="tour-nearest">
-        <div class="fh-section-title">📍 ${tr(L, "Find the nearest…", "近くの施設を探す")}</div>
+        <div class="fh-section-title">📍 ${tr(L, "Find the Nearest…", "近くの施設を探す")}</div>
         <div class="fh-field">
             <select id="nearest-cat" class="fh-select" aria-label="${tr(L, "What are you looking for?", "探したい施設")}">
                 ${NEAREST.map((c) => `<option value="${c.key}"${c.key === nearest.cat ? " selected" : ""}>${c.icon} ${tr(L, c.en, c.ja)}</option>`).join("")}
             </select>
         </div>
         <div class="fh-btn-row">
-            <button type="button" class="fh-btn${nearestActive() === "locate" ? " is-active" : ""}" data-nearest="locate" aria-pressed="${nearestActive() === "locate"}">📍 ${tr(L, "Use my location", "現在地から")}</button>
-            <button type="button" class="fh-btn${nearestActive() === "pick" ? " is-active" : ""}" data-nearest="pick" aria-pressed="${nearestActive() === "pick"}">🗺️ ${tr(L, "Pick on map", "地図で選ぶ")}</button>
+            <button type="button" class="fh-btn${nearestActive() === "locate" ? " is-active" : ""}" data-nearest="locate" aria-pressed="${nearestActive() === "locate"}">📍 ${tr(L, "Use My Location", "現在地から")}</button>
+            <button type="button" class="fh-btn${nearestActive() === "pick" ? " is-active" : ""}" data-nearest="pick" aria-pressed="${nearestActive() === "pick"}">🗺️ ${tr(L, "Pick on Map", "地図で選ぶ")}</button>
         </div>
         <div id="nearest-results" aria-live="polite">${nearestResultsHtml(L)}</div>
         </div>
@@ -1470,7 +1487,8 @@ function renderPanel() {
                         <input type="checkbox" id="toggle-${key}" data-layer="${key}"${layers[key].visible ? " checked" : ""}>
                         <span class="fh-check-text"><span id="toggle-${key}-lbl">${t(SPEC[key].labelKey, L)}</span>${SPEC[key].props?.minScale ? `<small class="fh-hint" id="hint-${key}" hidden>${t("zoomHint", L)}</small>` : ""}</span>
                     </label>${key === "medical" ? `
-                    <label class="fh-check fh-sub"><input type="checkbox" id="medical-multi"${medicalMultiOnly ? " checked" : ""}><span class="fh-check-text"><span>🌟 ${t("medicalMultiOnly", L)}</span></span></label>` : ""}`).join("")}
+                    <label class="fh-check fh-sub"><input type="checkbox" id="medical-multi"${medicalMultiOnly ? " checked" : ""}><span class="fh-check-text"><span>🌟 ${t("medicalMultiOnly", L)}</span></span></label>` : ""}${key === "communityEvents" ? `
+                    <label class="fh-check fh-sub"><input type="checkbox" id="events-upcoming"${hidePastEvents ? " checked" : ""}><span class="fh-check-text"><span>⏳ ${t("hidePastEvents", L)}</span></span></label>` : ""}`).join("")}
             </div>`).join("")}
         <div class="fh-section-title">${t("crowdsourceHeader", L)}</div>
         <div class="fh-links" id="tour-links">
@@ -1478,7 +1496,7 @@ function renderPanel() {
             <a class="fh-link is-report" href="${FORM_LINKS.report}" target="_blank" rel="noopener noreferrer">${t("reportBtn", L)}</a>
             <a class="fh-link is-bug" href="${FORM_LINKS.bug}" target="_blank" rel="noopener noreferrer">${t("reportAppBtn", L)}</a>
         </div>
-        <div class="fh-about-link"><button type="button" class="fh-linkbtn" data-about>ⓘ ${tr(L, "About & data sources", "このアプリについて・データの出典")}</button></div>`;
+        <div class="fh-about-link"><button type="button" class="fh-linkbtn" data-about>ⓘ ${tr(L, "About & Data Sources", "このアプリについて・データの出典")}</button></div>`;
     panelEl.scrollTop = scroll;
     toggleBtn.textContent = t("mapControlsBtn", L);
     updateScaleHints();
@@ -1494,6 +1512,24 @@ function updateScaleHints() {
         if (hint) hint.hidden = hidden;
         panelEl.querySelector(`#toggle-${spec.key}-lbl`)?.classList.toggle("is-muted", !hidden);
     }
+}
+
+/* Community events: hide the ones that already took place. The cutoff is "now minus 12 hours" so an event that is
+   still under way stays visible, and entries with no date are kept. Timestamps in the service SQL are UTC. */
+const EVENT_DATE_FIELD = "date_and_time";
+const EVENT_GRACE_HOURS = 12;
+function applyEventsFilter() {
+    const layer = layers.communityEvents;
+    if (!layer) return;
+    if (!hidePastEvents) { layer.definitionExpression = null; return; }
+    const field = layer.fields?.find((f) => f.name.toLowerCase() === EVENT_DATE_FIELD && f.type === "date");
+    if (!field) { console.warn(`[events] no date field "${EVENT_DATE_FIELD}" on the events layer; past events are not hidden`); return; }
+    const cutoff = new Date(Date.now() - EVENT_GRACE_HOURS * 3600e3).toISOString().slice(0, 19).replace("T", " ");
+    layer.definitionExpression = `${field.name} >= timestamp '${cutoff}' OR ${field.name} IS NULL`;
+}
+function setHidePastEvents(on) {
+    hidePastEvents = on;
+    applyEventsFilter();
 }
 
 // Show only facilities with foreign-language support. The four matches would vanish when zoomed out, so minScale is lifted while this is on.
@@ -1708,7 +1744,7 @@ function setNearestOrigin(lon, lat, source) {
 
 function useMyLocation() {
     const L = currentLang;
-    if (!navigator.geolocation) { nearest.status = tr(L, "Your browser can't share a location. Try \"Pick on map\".", "位置情報を取得できません。「地図で選ぶ」をお試しください。"); renderNearest(); return; }
+    if (!navigator.geolocation) { nearest.status = tr(L, "Your browser can't share a location. Try \"Pick on Map\".", "位置情報を取得できません。「地図で選ぶ」をお試しください。"); renderNearest(); return; }
     nearest.status = tr(L, "Finding your location…", "現在地を取得中…");
     locating = true;
     pickingOrigin = false;
@@ -1716,7 +1752,7 @@ function useMyLocation() {
     renderNearest();
     navigator.geolocation.getCurrentPosition(
         (pos) => { locating = false; setNearestOrigin(pos.coords.longitude, pos.coords.latitude, "locate"); },
-        () => { locating = false; nearest.status = tr(currentLang, "Couldn't get your location. Check the location permission, or try \"Pick on map\".", "現在地を取得できませんでした。位置情報の許可を確認するか、「地図で選ぶ」をお試しください。"); renderNearest(); },
+        () => { locating = false; nearest.status = tr(currentLang, "Couldn't get your location. Check the location permission, or try \"Pick on Map\".", "現在地を取得できませんでした。位置情報の許可を確認するか、「地図で選ぶ」をお試しください。"); renderNearest(); },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
 }
@@ -1791,7 +1827,7 @@ function openAbout() {
     const L = currentLang;
     const a = (url, label) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`;
     const html = `
-        <div class="fh-about-head"><h2 id="fh-about-title">${tr(L, "About & data sources", "このアプリについて・データの出典")}</h2><button type="button" class="fh-about-close" aria-label="${tr(L, "Close", "閉じる")}">✕</button></div>
+        <div class="fh-about-head"><h2 id="fh-about-title">${tr(L, "About & Data Sources", "このアプリについて・データの出典")}</h2><button type="button" class="fh-about-close" aria-label="${tr(L, "Close", "閉じる")}">✕</button></div>
         <p>${tr(L,
             "ForeignHokkaido is a bilingual map for foreign Assistant Language Teachers living in the Oshima and Hiyama subprefectures of Hokkaido. It was built as a University of Wisconsin–Madison Geography 778 practicum project by H. McBride in the Fall 2026 semester.",
             "ForeignHokkaido は、北海道の渡島・檜山地域に住む外国人ALT向けの日英対応マップです。ウィスコンシン大学マディソン校 地理学778の実習プロジェクトとして、H. McBride が2026年秋学期に制作しました。")}</p>
@@ -1820,6 +1856,7 @@ function openAbout() {
             <li><b>${tr(L, "Community events & local interests", "コミュニティイベント・地域のおすすめ")}</b>: ${tr(L,
                 "Submitted by users through Esri Survey123. They are not verified.",
                 "ユーザーが Esri Survey123 で投稿した情報です。内容は確認されていません。")}</li>
+            <li><b>${tr(L, "App icon", "アプリのアイコン")}</b>: ${tr(L, "Adapted from \"Hokkaido\" by Snow, from Noun Project, CC BY 3.0 (outline filled and recolored). ", "Snow 作「Hokkaido」（Noun Project、CC BY 3.0）を改変（輪郭を塗りつぶし、色を変更）。")}${a("https://thenounproject.com/icon/2676113/", "Noun Project ↗")}</li>
             <li><b>${tr(L, "Basemaps", "ベースマップ")}</b>: Esri, ${tr(L, "with the contributors listed at the bottom of the map.", "ほか、地図下部に表示のデータ提供者。")}</li>
         </ul>
 
@@ -1882,6 +1919,7 @@ function buildControls() {
         const el = e.target;
         if (el.dataset?.layer) layers[el.dataset.layer].visible = el.checked;
         else if (el.id === "medical-multi") setMedicalMultiOnly(el.checked);
+        else if (el.id === "events-upcoming") setHidePastEvents(el.checked);
         else if (el.id === "nearest-cat") { nearest.cat = el.value; if (nearest.origin) runNearest(); else renderNearest(); }
         else if (el.id === "muni-filter-select") applyMuniFilter(el.value);
         else if (el.id === "trash-filter-select") {
@@ -1969,6 +2007,7 @@ export function resetView() {
     trashTown = "ALL";
     showTrash("ALL");
     setMedicalMultiOnly(false);
+    setHidePastEvents(HIDE_PAST_DEFAULT);
     clearNearest();
     view.closePopup();
     // Back to the default layers for the current season (undoes any layers the user switched on or off)
@@ -2042,7 +2081,7 @@ export async function initMap(containerId, apiKey) {
     view.watch("widthBreakpoint", applyBreakpoint);
     applyBreakpoint(view.widthBreakpoint);
 
-    // "Pick on map" for the nearest-X tool: takes the next click and keeps it from opening a popup.
+    // "Pick on Map" for the nearest-X tool: takes the next click and keeps it from opening a popup.
     view.on("click", (event) => {
         // Tapping a numbered result marker opens that place's popup (checked on screen so the default popup can be stopped in time).
         if (!pickingOrigin && nearest.results.length) {
