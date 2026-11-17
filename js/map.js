@@ -1633,7 +1633,8 @@ async function findNearest(cat, origin) {
         const seen = new Set();
         const list = [];
         for (const f of features) {
-            const g = f.geometry;
+            // Points have latitude/longitude; stations (MLIT N02) may be lines or polygons, so use the middle of their extent.
+            const g = f.geometry?.latitude !== undefined ? f.geometry : f.geometry?.extent?.center;
             if (!g || g.latitude === undefined) continue;
             const name = String(cat.name(f.attributes, "EN") ?? "");
             const key = `${name}|${g.latitude.toFixed(3)}|${g.longitude.toFixed(3)}`; // same place listed twice (e.g. a station on two lines)
@@ -1800,7 +1801,7 @@ function showNearestResult(i) {
     if (window.matchMedia(MOBILE_QUERY).matches) setPanelOpen(false);
     view.goTo({ center: [r.lon, r.lat], zoom: 15 }, { duration: 900 })
         .catch(() => {})
-        .then(() => view.openPopup({ features: [r.feature], location: r.feature.geometry }))
+        .then(() => view.openPopup({ features: [r.feature], location: { type: "point", longitude: r.lon, latitude: r.lat } }))
         .catch(() => {});
 }
 
@@ -2098,6 +2099,7 @@ export function resetView() {
     showTrash("ALL");
     setMedicalMultiOnly(false);
     setHidePastEvents(HIDE_PAST_DEFAULT);
+    nearest.cat = NEAREST[0].key; // back to the first "Find the nearest" choice, not just clearing the results
     clearNearest();
     view.closePopup();
     // Back to the default layers for the current season (undoes any layers the user switched on or off)
