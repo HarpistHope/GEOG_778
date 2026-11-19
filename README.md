@@ -34,42 +34,6 @@ ForeignHokkaido puts the practical information a new ALT needs (hospitals, emerg
 
 Source datasets are cleaned in ArcGIS Pro and Python. Most are published as ArcGIS Online hosted feature layers, and a few smaller ones are kept as GeoJSON in this repository. The app has no server of its own. The browser loads the SDK, draws the layers, and queries them directly (SQL attribute filters and spatial queries for filters, municipality summaries, and Find the Nearest). Survey123 submissions go straight to hosted layers, which the map refreshes every minute.
 
-## Repository layout
-
-```
-index.html              App shell and header buttons
-css/style.css           Styles (mobile-first)
-js/main.js              Header, onboarding tour, app startup
-js/map.js               Map, layers, popups, filters, Find the Nearest, auto-zoom
-js/localization.js      All English/Japanese text strings
-js/location.js          "Use my location" widget
-js/config.js            Your Esri API key (NOT committed; see below)
-datasets/               GeoJSON files loaded by the app (medical, ski areas, hazard areas)
-data/                   Name tables, calculated-field code, garbage-rule CSVs, verification log
-scripts/                Python scripts for updating the garbage-rule layer
-images/                 Favicons and app icons
-```
-
-## Run it locally
-
-The app uses ES modules, so it must be served over HTTP. Opening `index.html` directly (`file://`) will not work.
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/harpisthope/GEOG_778.git
-   cd GEOG_778
-   ```
-2. Create `js/config.js` with an Esri API key that has basemap access:
-   ```js
-   export const AGOL_APIkey = { API_KEY: "YOUR_KEY_HERE" };
-   ```
-   Without a key the app still loads, but Esri basemap styles will not appear. Do not commit this file, and restrict the key to your site's domain (for example `harpisthope.github.io` and `localhost`) in your ArcGIS developer settings.
-3. Serve the folder, for example with VS Code Live Server or:
-   ```bash
-   python -m http.server 5500
-   ```
-   Then open http://localhost:5500/.
-
 ## Data
 
 Full layer names, years, and credits are in the app under **About & Data Sources**.
