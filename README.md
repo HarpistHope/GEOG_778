@@ -30,7 +30,7 @@ ForeignHokkaido puts the practical information a new ALT needs (hospitals, emerg
 - GitHub Pages for hosting
 - Python (ArcGIS Pro / `arcpy`, and the `arcgis` package) for data preparation and updates
 
-## Architecture in brief
+## Architecture
 
 Source datasets are cleaned in ArcGIS Pro and Python. Most are published as ArcGIS Online hosted feature layers, and a few smaller ones are kept as GeoJSON in this repository. The app has no server of its own. The browser loads the SDK, draws the layers, and queries them directly (SQL attribute filters and spatial queries for filters, municipality summaries, and Find the Nearest). Survey123 submissions go straight to hosted layers, which the map refreshes every minute.
 
@@ -48,16 +48,6 @@ Full layer names, years, and credits are in the app under **About & Data Sources
 | Community events and local interests | Survey123 submissions |
 
 Several MLIT datasets date from 2010 to 2015, so a facility may have closed or moved. Each popup shows its data year.
-
-## Maintaining the data
-
-- **Garbage rules** live in `data/trash_regulations_v3.csv`, with a per-town status, check date, and sources in `data/trash_verification_log.csv` (Verified, Partly verified, or Needs confirmation).
-- To push edits to the hosted layer, use the scripts in `scripts/`. Both default to `DRY_RUN = True`, so they print what would change first.
-  - `update_trash_layer.py` runs in the ArcGIS Pro Python window and edits the layer by Japanese town name.
-  - `update_trash_hosted.py` edits the hosted layer directly through the `arcgis` package, matching on the town code `N03_007`, without republishing.
-- **Name fixes.** English names for stations, schools, municipal offices, and roadside stations are in the CSVs in `data/`. The AGOL layers must be edited as well, since the app reads the hosted fields.
-- **Calendars.** The 2026 garbage calendars expire in March 2027, and town calendars change each April.
-- **Survey123 access.** Responses to the Report Issue form are visible only to the form's owner. Transfer ownership of the forms and layers before student ArcGIS Online accounts are removed after graduation.
 
 ## Known limitations
 
@@ -83,8 +73,6 @@ Several MLIT datasets date from 2010 to 2015, so a facility may have closed or m
 - Favicon adapted from "Hokkaido" by Snow, from the [Noun Project](https://thenounproject.com/icon/2676113/) (CC BY 3.0).
 - **AI assistance.** Claude and Google Gemini assisted with code, translation, and data compilation. All output was manually reviewed.
 - Thank you to the ALTs who took the survey, tested the app, and sent local corrections.
-
-Code license: [choose a license, for example MIT, or note "all rights reserved"].
 
 ## Author
 
