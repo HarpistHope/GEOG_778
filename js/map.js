@@ -8,11 +8,11 @@ import { t, municipalities, districts, subprefectures } from "./localization.js"
    CONSTANTS & STATE
    ========================================================================== */
 
-const HOME = { center: [140.3, 42.09], zoom: 9 };
-// Starting view: zoom 9 on wide screens; on narrow screens zoom out (fractionally) so the whole study area fits the width.
+const HOME = { center: [140.23, 42.09], zoom: 9 };
+// Starting view: zoom 9 on wide screens; on narrower windows and phones zoom out in whole levels so the whole study area fits the width.
 const homeView = (width = window.innerWidth) => ({
     center: HOME.center,
-    zoom: window.matchMedia(MOBILE_QUERY).matches ? HOME.zoom - 1 : Math.min(HOME.zoom, Math.log2(0.62 * width)) // phones: one level out from desktop
+    zoom: window.matchMedia(MOBILE_QUERY).matches ? HOME.zoom - 1 : Math.floor(Math.min(HOME.zoom, Math.log2(0.62 * width))) // whole levels only; phones open one level out so the whole region fits
 });
 let homeState = null; // {center, scale} captured from the real starting view
 const EASE = { duration: 1500, easing: "in-out-cubic" };
@@ -143,7 +143,7 @@ const labeled = (label, node) => el("div", {}, el("b", { textContent: `${label}:
 // HTML fragments
 const row = (label, value) => `<b>${label}:</b> ${value}<br>`;
 const HR = `<hr style="border:none;border-top:1px solid #ddd;margin:8px 0">`;
-const note = (html) => `<i style="font-size:11px;color:#666;display:block;margin-top:4px">${html}</i>`;
+const note = (html) => `<div style="font-size:11px;color:#666;font-style:italic;margin-top:4px">${html}</div>`;
 const body = (html) => [{ type: "text", text: `<div style="font-size:13px;line-height:1.5">${html}</div>` }];
 const addrNote = (L) => (L === "EN" ? note("💡 Addresses are available in Japanese only") : "");
 
@@ -176,7 +176,7 @@ const actions = (L, addressField) => custom((g) => {
     if (url) box.append(el("a", { href: url, target: "_blank", rel: "noopener noreferrer", textContent: `🧭 ${tr(L, "Directions", "経路を表示")}`, style: ACTION_STYLE }));
     const address = addressField ? attr(g, addressField) : "";
     if (address && navigator.clipboard) {
-        const btn = el("button", { type: "button", textContent: `📋 ${tr(L, "Copy address (Japanese)", "住所をコピー")}`, style: ACTION_STYLE });
+        const btn = el("button", { type: "button", textContent: `📋 ${tr(L, "Copy Address (Japanese)", "住所をコピー")}`, style: ACTION_STYLE });
         btn.addEventListener("click", () => navigator.clipboard.writeText(address)
             .then(() => { btn.textContent = `✓ ${tr(L, "Copied", "コピーしました")}`; }).catch(() => {}));
         box.append(btn);
@@ -204,7 +204,7 @@ const POPUPS = {
         content: body(
             row(tr(L, "Subprefecture", "振興局"), X("name")) +
             row(tr(L, "Prefecture", "都道府県"), tr(L, "Hokkaido", "北海道")) +
-            row(tr(L, "Regional hub", "振興局所在地"), X("hub")) +
+            row(tr(L, "Regional Hub", "振興局所在地"), X("hub")) +
             HR + note(X("desc"))
         ),
         expressionInfos: [
@@ -263,7 +263,7 @@ const POPUPS = {
                 if (url) {
                     const l = el("div", { style: "background:#eff6ff;border:1px solid #bfdbfe;padding:8px 10px;border-radius:6px;margin-bottom:10px;text-align:center" });
                     const union = /eiseicenter\.or\.jp/i.test(url); // Setana and Imakane: the union's site holds the district calendars
-                    l.append("🔗 ", linkEl(url, union ? tr(L, "Official collection calendars by district ↗", "地区別ごみ収集カレンダー（公式） ↗") : tr(L, "Official town page ↗", "自治体の公式ページ ↗")));
+                    l.append("🔗 ", linkEl(url, union ? tr(L, "Official Collection Calendars by District ↗", "地区別ごみ収集カレンダー（公式） ↗") : tr(L, "Official Town Page ↗", "自治体の公式ページ ↗")));
                     box.append(l);
                 }
                 // 3. One block per waste type (skipped when the layer has no data for it)
@@ -302,7 +302,7 @@ const POPUPS = {
         title: `🏛️ ${X("name")}`,
         content: [...body(
             lead((L === "EN" ? "Japanese name: " : "") + X("fname"), "info") +
-            `<b>${tr(L, "What you can do here", "主な利用目的")}:</b><p style="margin:4px 0 8px">${X("desc")}</p>` +
+            `<b>${tr(L, "What You Can Do Here", "主な利用目的")}:</b><p style="margin:4px 0 8px">${X("desc")}</p>` +
             row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L) + srcNote(L, 2022)
         ), actions(L, "P05_004")],
         expressionInfos: [
@@ -341,7 +341,7 @@ const POPUPS = {
             title: `👮 ${X("title")}`,
             content: [...body(
                 lead((L === "EN" ? "Japanese name: " : "") + X("name"), "info") +
-                `<b>${tr(L, "What you can do here", "主な利用目的")}:</b><p style="margin:4px 0 8px">${X("desc")}</p>` +
+                `<b>${tr(L, "What You Can Do Here", "主な利用目的")}:</b><p style="margin:4px 0 8px">${X("desc")}</p>` +
                 row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L) + srcNote(L, 2012)
             ), actions(L, "P18_004")],
             expressionInfos: [
@@ -413,7 +413,7 @@ const POPUPS = {
             custom((g) => {
                 const remark = attr(g, "P29_009");
                 const box = el("div", { style: BLOCK });
-                if (remark) box.append(labeled(tr(L, "Campus / note", "校舎・備考"), document.createTextNode(remark)));
+                if (remark) box.append(labeled(tr(L, "Campus / Note", "校舎・備考"), document.createTextNode(remark)));
                 else box.hidden = true;
                 return box;
             }),
@@ -457,7 +457,7 @@ const POPUPS = {
             content: [
                 custom((g) => {
                     const box = el("div", { style: `${BLOCK};margin-bottom:6px` });
-                    box.append(el("div", { style: "font-weight:600;margin-bottom:4px", textContent: tr(L, "Available here", "ご利用いただける設備") }));
+                    box.append(el("div", { style: "font-weight:600;margin-bottom:4px", textContent: tr(L, "Available Here", "ご利用いただける設備") }));
                     const have = AMENITIES.filter((a) => flagOn(g, ...a[3]));
                     if (have.length) have.forEach((a) => box.append(chip(`${a[0]} ${tr(L, a[1], a[2])}`)));
                     else box.append(el("div", { style: "color:#6b7280", textContent: tr(L, "No amenities recorded", "設備情報なし") }));
@@ -495,20 +495,20 @@ const POPUPS = {
                     const box = el("div", { style: `${BLOCK};margin-bottom:6px` });
                     const yes = HAZARDS.filter((h) => flagOn(g, h[3]));
                     const no = HAZARDS.filter((h) => !flagOn(g, h[3]));
-                    box.append(el("div", { style: "font-weight:600;margin-bottom:4px", textContent: yes.length ? tr(L, "Designated shelter for", "指定されている災害") : tr(L, "Disaster designation", "災害の指定") }));
+                    box.append(el("div", { style: "font-weight:600;margin-bottom:4px", textContent: yes.length ? tr(L, "Designated Shelter for", "指定されている災害") : tr(L, "Disaster Designation", "災害の指定") }));
                     if (yes.length) yes.forEach((h) => box.append(chip(`${h[0]} ${tr(L, h[1], h[2])}`)));
                     else box.append(el("div", { style: "color:#6b7280", textContent: flagOn(g, "P20_012")
                         ? tr(L, "No specific disaster type designated in the data", "災害種別の指定なし")
                         : tr(L, "Hazard types not specified in the data", "指定災害種別の記載なし") }));
                     if (yes.length && no.length) {
                         box.append(el("div", { style: "font-size:12px;color:#6b7280", textContent:
-                            `${tr(L, "Not designated for", "対象外")}: ${no.map((h) => tr(L, h[1], h[2])).join(tr(L, ", ", "、"))}` }));
+                            `${tr(L, "Not Designated for", "対象外")}: ${no.map((h) => tr(L, h[1], h[2])).join(tr(L, ", ", "、"))}` }));
                     }
                     return box;
                 }),
                 ...body(
                     (L === "EN" ? row("Japanese name", X("jname")) : "") +
-                    row(tr(L, "Facility type", "施設種別"), X("type")) +
+                    row(tr(L, "Facility Type", "施設種別"), X("type")) +
                     row(tr(L, "Capacity", "想定収容人数"), X("cap")) +
                     row(tr(L, "Address", "所在地"), X("addr")) + addrNote(L) +
                     note(tr(L, "Designations come from 2012 national data. Confirm with your town's current hazard map (ハザードマップ).",
@@ -537,7 +537,7 @@ const POPUPS = {
                 row(tr(L, "Municipality", "自治体名"), X("muni")) +
                 lead(X("cls"), "info") +
                 note(X("clsDesc")) + "<br>" + HR + "<br>" +
-                `<b>${tr(L, "Climate averages", "気候平均値")}:</b>` +
+                `<b>${tr(L, "Climate Averages", "気候平均値")}:</b>` +
                 `<ul style="margin:4px 0 0 18px;padding:0"><li>${tr(L, "Avg. minimum temperature", "平均最低気温")}: ${X("temp")}</li>` +
                 `<li>${tr(L, "Avg. total snowfall", "平均年間降雪量")}: ${X("snow")}</li>` +
                 `<li>${tr(L, "Avg. maximum snow depth", "平均最大積雪深")}: ${X("depth")}</li></ul>` +
@@ -630,7 +630,7 @@ const POPUPS = {
         const deptName = (d) => (L === "JA" ? d : DEPTS[d] || d);
         const deptDict = `{${Object.entries(DEPTS).map(([a, b]) => `${q(a)}: ${q(b)}`).join(", ")}}`;
         const deptBody =
-            `var s = ${NZ("診療科目", "")}; if (s == '' && ${NZ("facility_type", "")} == 'Pharmacy') { return ${q(tr(L, "Prescription dispensing", "調剤"))}; } if (s == '') { return ${q(tr(L, "Unspecified", "記載なし"))}; } ` +
+            `var s = ${NZ("診療科目", "")}; if (s == '' && ${NZ("facility_type", "")} == 'Pharmacy') { return ${q(tr(L, "Prescription Dispensing", "調剤"))}; } if (s == '') { return ${q(tr(L, "Unspecified", "記載なし"))}; } ` +
             (L === "JA"
                 ? "return Replace(s, ';', '、');"
                 : `var D = ${deptDict}; var parts = Split(s, ';'); var out = []; ` +
@@ -665,7 +665,7 @@ const POPUPS = {
                 box.innerHTML = lead(`🌟 ${tr(L, "Foreign-language support", "外国語対応")}${names ? `: <b>${names}</b>` : ""}`, "good");
                 const chips = el("div", { style: "margin:2px 0 4px" });
                 if (flagOn(g, "interpreter_onsite")) chips.append(chip(tr(L, "On-site interpreter", "医療通訳者あり")));
-                if (flagOn(g, "interpreter_remote")) chips.append(chip(tr(L, "Remote interpreting", "遠隔通訳あり")));
+                if (flagOn(g, "interpreter_remote")) chips.append(chip(tr(L, "Remote Interpreting", "遠隔通訳あり")));
                 if (chips.childNodes.length) box.append(chips);
                 for (const [key, depts] of groups) {
                     box.append(el("div", { style: "font-size:12.5px;margin:2px 0", textContent: `${key.split(", ").map(langName).join(tr(L, ", ", "、"))} — ${depts.join(tr(L, ", ", "、"))}` }));
@@ -677,13 +677,13 @@ const POPUPS = {
                 const phone = attr(g, "電話番号");
                 if (phone) box.append(labeled(tr(L, "Phone", "電話番号"), el("a", { href: `tel:${phone.replace(/[^\d+]/g, "")}`, textContent: phone })));
                 const hours = attr(g, "reception_hours");
-                if (hours) box.append(labeled(tr(L, "Reception hours", "受付時間"), document.createTextNode(L === "EN" ? translateHours(hours) : hours)));
+                if (hours) box.append(labeled(tr(L, "Reception Hours", "受付時間"), document.createTextNode(L === "EN" ? translateHours(hours) : hours)));
                 const url = safeUrl(attr(g, "website"));
                 if (url) box.append(labeled(tr(L, "Website", "公式サイト"), linkEl(url, tr(L, "Official website", "公式サイト"))));
                 // Service badges: only shown when the list marks them
                 const badges = el("div", { style: "margin-top:6px" });
                 if (flagOn(g, "open_24h")) badges.append(chip(tr(L, "Open 24 h / 365 days", "24時間365日対応")));
-                if (flagOn(g, "accepts_cards")) badges.append(chip(tr(L, "Credit cards accepted", "クレジットカード可")));
+                if (flagOn(g, "accepts_cards")) badges.append(chip(tr(L, "Credit Cards Accepted", "クレジットカード可")));
                 const ER = { "初期救急医療機関": ["Primary emergency care (first aid)", "初期救急医療機関"], "第二次救急医療機関": ["Secondary emergency hospital", "第二次救急医療機関"], "第三次救急医療機関": ["Tertiary emergency center", "第三次救急医療機関"] };
                 const er = attr(g, "emergency_level");
                 if (er) badges.append(chip(ER[er] ? tr(L, ...ER[er]) : er));
@@ -748,7 +748,7 @@ actions(L, "所在地")],
                     const op = attr(g, "P11_002");
                     if (op) box.append(labeled(tr(L, "Operator", "運行会社"), document.createTextNode(operatorName(op))));
                     const types = [...new Set(routes.map((r) => r.type).filter((c) => BUS_TYPES[c]))];
-                    if (types.length) box.append(labeled(tr(L, "Service type", "種別"), document.createTextNode(types.map((c) => tr(L, ...BUS_TYPES[c])).join(tr(L, ", ", "、")))));
+                    if (types.length) box.append(labeled(tr(L, "Service Type", "種別"), document.createTextNode(types.map((c) => tr(L, ...BUS_TYPES[c])).join(tr(L, ", ", "、")))));
                     const remark = attr(g, "P11_005");
                     if (remark) box.append(labeled(tr(L, "Remarks", "備考"), document.createTextNode(remark)));
                     return box;
@@ -790,12 +790,12 @@ actions(L, "所在地")],
                 custom((g) => {
                     const box = el("div", { style: BLOCK });
                     const type = TYPES[attr(g, "A15_004")];
-                    box.append(el("div", { innerHTML: lead(type ? `${type[0]}<br><span style="font-weight:500;font-size:13px">${type[1]}</span>` : tr(L, "Wildlife protection area", "鳥獣保護区等"), type ? "good" : "plain") }));
+                    box.append(el("div", { innerHTML: lead(type ? `${type[0]}<br><span style="font-weight:500;font-size:13px">${type[1]}</span>` : tr(L, "Wildlife Protection Area", "鳥獣保護区等"), type ? "good" : "plain") }));
                     const body_ = BODIES[attr(g, "A15_003")];
                     if (body_) box.append(labeled(tr(L, "Designated by", "指定機関"), document.createTextNode(body_)));
                     const from = attr(g, "A15_005"), to = attr(g, "A15_006");
                     if (from) box.append(labeled(tr(L, "Designated on", "指定日"), document.createTextNode(from)));
-                    if (to) box.append(labeled(tr(L, "Ends / released on", "解除日・終期"), document.createTextNode(to)));
+                    if (to) box.append(labeled(tr(L, "Ends / Released on", "解除日・終期"), document.createTextNode(to)));
                     return box;
                 }),
                 ...body((L === "EN" ? row("Area name (Japanese)", X("jname")) : "") + note(tr(L, "Area names are shown in Japanese. Hunting rules apply to hunters only, but stay on marked trails and keep a distance from wildlife.",
@@ -830,9 +830,9 @@ actions(L, "所在地")],
                 (L === "EN" ? row("Japanese name", X("nameJa")) : "") +
                 row(tr(L, "Municipality", "自治体"), X("muni")) +
                 row(tr(L, "Subprefecture", "振興局"), X("sub")) +
-                row(tr(L, "Lifts & facilities", "リフト・設備"), X("lifts")) +
-                row(tr(L, "Lift fee", "リフト料金"), X("cost")) +
-                row(tr(L, "Season & hours", "シーズン・営業時間"), X("season"))
+                row(tr(L, "Lifts & Facilities", "リフト・設備"), X("lifts")) +
+                row(tr(L, "Lift Fee", "リフト料金"), X("cost")) +
+                row(tr(L, "Season & Hours", "シーズン・営業時間"), X("season"))
             ), custom((g) => {
                 const box = el("div", { style: `${BLOCK};margin-top:6px` });
                 const phone = attr(g, "phone");
@@ -892,10 +892,10 @@ actions(L, "所在地")],
             title: `🎉 ${X("type")}`,
             content: body(
                 lead(`📅 ${X("date")}<br><span style="font-weight:500;font-size:13px">${X("when")} · 🌙 ${tr(L, "Overnight", "宿泊")}: ${X("overnight")}</span>`, "good") +
-                row(tr(L, "What to bring", "持ち物"), X("bring")) +
+                row(tr(L, "What to Bring", "持ち物"), X("bring")) +
                 row(tr(L, "Carpooling", "相乗り"), X("carpool")) +
                 row(`👤 ${tr(L, "Contact", "連絡先")}`, X("contact")) + HR +
-                `<b>📝 ${tr(L, "Additional information", "追加情報")}:</b><p style="margin:4px 0">${X("info")}</p>` +
+                `<b>📝 ${tr(L, "Additional Information", "追加情報")}:</b><p style="margin:4px 0">${X("info")}</p>` +
                 note(tr(L, "Submitted by a community member via the ForeignHokkaido survey and not verified. Free-text details are shown as the submitter wrote them.", "コミュニティ会員がフォームから投稿した情報で、内容は確認されていません。自由記述は投稿者の入力どおりに表示されます。"))
             ),
             expressionInfos: [
@@ -939,7 +939,7 @@ actions(L, "所在地")],
         title: `📍 ${X("type")}`,
         content: body(
             lead(`${tr(L, "Recommendation", "おすすめ度")}: ${X("rating")}`, "good") +
-            `<b>📝 ${tr(L, "Additional information", "追加情報")}:</b><p style="margin:4px 0">${X("info")}</p>` +
+            `<b>📝 ${tr(L, "Additional Information", "追加情報")}:</b><p style="margin:4px 0">${X("info")}</p>` +
             note(tr(L, "Submitted by a community member via the ForeignHokkaido survey and not verified. Free-text details are shown as the submitter wrote them.", "コミュニティ会員がフォームから投稿した情報で、内容は確認されていません。自由記述は投稿者の入力どおりに表示されます。"))
         ),
         expressionInfos: [
@@ -964,7 +964,7 @@ function hazardPopup(L, icon, notice) {
             lead(`${icon} ${notice}`, "warn") +
             row(`📍 ${tr(L, "Location", "場所")}`, X("loc")) +
             row(`🆔 ${tr(L, "Site ID", "箇所番号")}`, X("id")) +
-            (L === "EN" ? note("Place names are shown in Japanese.") : "") +
+            (L === "EN" ? note("Neighborhood names are shown in Japanese.") : "") +
             `<small style="color:gray;display:block;margin-top:6px">${tr(L, "Source", "出典")}: ${X("src")}</small>`
         ),
         expressionInfos: [
@@ -1052,8 +1052,10 @@ const RENDERERS = {
             { value: "1", label: "Heavy Snow Zone (豪雪地帯)", symbol: fill([140, 190, 230], 0.35, [70, 130, 180], 1.1) }
         ]
     },
-    avalanche: single(fill(C.vermillion, 0.3, C.vermillion, 1.3, { style: "forward-diagonal" })),
-    landslide: single(fill(C.orange, 0.35, [150, 95, 0], 1.3, { style: "backward-diagonal" })),
+    // Avalanche: neon yellow so it stands out against the blue snow zones; landslide: red. Different hatch directions keep them
+    // apart for color-blind viewers and in grayscale. Fill and outline are both bright (a dark outline made the small yellow shapes read as olive).
+    avalanche: single(fill([255, 255, 0], 0.85, [255, 200, 0], 1.5, { style: "forward-diagonal" })),
+    landslide: single(fill(C.vermillion, 0.35, [150, 40, 0], 1.3, { style: "backward-diagonal" })),
 
     // --- lines ---
     railLines: single({ type: "simple-line", color: [90, 90, 90, 0.9], width: 1.25, style: "solid" }),
@@ -1338,7 +1340,7 @@ async function townGeometry(town) {
 
 /* ---- Municipality summary (shown in the municipality polygon popup) ---- */
 const SUMMARY_ITEMS = [
-    { layer: "medical", own: true, icon: "🏥", en: "Medical facilities", ja: "医療機関", keepZero: true },
+    { layer: "medical", own: true, icon: "🏥", en: "Medical Facilities", ja: "医療機関", keepZero: true },
     { layer: "medical", own: true, where: "multilingual = 1", icon: "🌟", en: "…with foreign-language support", ja: "うち外国語対応", keepZero: true },
     { layer: "shelters", icon: "🛡️", en: "Emergency shelters", ja: "避難所" },
     { layer: "schools", icon: "🏫", en: "Schools", ja: "学校" },
@@ -1385,7 +1387,7 @@ function muniSummary(graphic, L) {
     const ja = String(graphic.attributes?.N03_004 ?? "").trim();
     const wrap = el("div", { style: "font-size:13px;line-height:1.5;margin-top:6px" });
     if (!ja) return wrap;
-    const head = el("div", { style: "font-weight:700;border-top:1px solid #ddd;padding-top:8px;margin-bottom:4px", textContent: tr(L, "Mapped in this town", "この町にある施設（地図上）") });
+    const head = el("div", { style: "font-weight:700;border-top:1px solid #ddd;padding-top:8px;margin-bottom:4px", textContent: tr(L, "Mapped in This Town", "この町にある施設（地図上）") });
     const status = el("div", { style: "color:#666;font-size:12px", textContent: tr(L, "Counting…", "集計中…") });
     wrap.append(head, status);
     townCounts(ja).then((res) => {
@@ -1400,8 +1402,8 @@ function muniSummary(graphic, L) {
         wrap.append(grid, el("div", { style: "color:#666;font-size:11px;margin-top:4px", textContent: tr(L, "Counts of places on this map; not every business or facility is included.", "このマップに載っている施設の数です。すべての施設を網羅しているわけではありません。") }));
         const btnStyle = "padding:6px 10px;font:inherit;font-size:12px;font-weight:600;color:#fff;background:#1b365d;border:0;border-radius:6px;cursor:pointer";
         const btns = el("div", { style: "display:flex;flex-wrap:wrap;gap:6px;margin-top:8px" });
-        btns.append(el("button", { type: "button", style: btnStyle, textContent: tr(L, "Show only this town", "この町だけ表示"), onclick: async () => { await applyMuniFilter(ja); renderPanel(); view.closePopup(); } }));
-        if (res.hasTrash) btns.append(el("button", { type: "button", style: btnStyle, textContent: `🗑️ ${tr(L, "Garbage rules", "ごみ分別")}`, onclick: () => { showTrash(ja); renderPanel(); } }));
+        btns.append(el("button", { type: "button", style: btnStyle, textContent: tr(L, "Show Only This Town", "この町だけ表示"), onclick: async () => { await applyMuniFilter(ja); renderPanel(); view.closePopup(); } }));
+        if (res.hasTrash) btns.append(el("button", { type: "button", style: btnStyle, textContent: `🗑️ ${tr(L, "Garbage Rules", "ごみ分別")}`, onclick: () => { showTrash(ja); renderPanel(); } }));
         wrap.append(btns);
     }).catch((e) => { console.warn("Municipality summary failed:", e); status.textContent = tr(L, "Summary unavailable.", "集計できませんでした。"); });
     return wrap;
@@ -1498,9 +1500,9 @@ function renderPanel() {
         </div>
         <div id="nearest-results" aria-live="polite">${nearestResultsHtml(L)}</div>
         </div>
-        <div class="fh-section-title">${t("layersLabel", L)}</div>
-        ${CATEGORIES.map((c, i) => `
-            <div class="fh-cat"${i === 0 ? ' id="tour-layers"' : ""}>
+        ${CATEGORIES.map((c, i) => `${i === 0 ? `<div id="tour-layers">
+            <div class="fh-section-title">${t("layersLabel", L)}</div>` : ""}
+            <div class="fh-cat">
                 <div class="fh-cat-title">${t(c.key, L)}</div>
                 ${c.layers.map((key) => `
                     <label class="fh-check">
@@ -1509,7 +1511,7 @@ function renderPanel() {
                     </label>${key === "medical" ? `
                     <label class="fh-check fh-sub"><input type="checkbox" id="medical-multi"${medicalMultiOnly ? " checked" : ""}><span class="fh-check-text"><span>🌟 ${t("medicalMultiOnly", L)}</span></span></label>` : ""}${key === "communityEvents" ? `
                     <label class="fh-check fh-sub"><input type="checkbox" id="events-upcoming"${hidePastEvents ? " checked" : ""}><span class="fh-check-text"><span>⏳ ${t("hidePastEvents", L)}</span></span></label>` : ""}`).join("")}
-            </div>`).join("")}
+            </div>${i === 0 ? "</div>" : ""}`).join("")}
         <div class="fh-section-title">${t("crowdsourceHeader", L)}</div>
         <div class="fh-links" id="tour-links">
             <a class="fh-link is-survey" href="${FORM_LINKS.survey}" target="_blank" rel="noopener noreferrer">${t("surveyBtn", L)}</a>
@@ -1665,7 +1667,7 @@ function nearestResultsHtml(L) {
                 <b>${escHtml(name)}</b>
                 <div class="fh-result-meta">${formatDistance(r.km)}${detail ? ` · ${escHtml(detail)}` : ""}</div>
                 <div class="fh-result-links">
-                    <button type="button" class="fh-linkbtn" data-nearest-go="${i}">${tr(L, "Show on map", "地図で見る")}</button> ·
+                    <button type="button" class="fh-linkbtn" data-nearest-go="${i}">${tr(L, "Show on Map", "地図で見る")}</button> ·
                     <a href="${dir}" target="_blank" rel="noopener noreferrer">🧭 ${tr(L, "Directions", "経路")}</a>
                 </div>
             </div>
@@ -1861,32 +1863,32 @@ function openAbout() {
         <ul class="fh-about-list">${MLIT_SOURCES.map(([en, ja, code, year, url]) =>
             `<li>${a(url, tr(L, en, ja))} <span class="fh-about-code">${code}${year ? ` · ${year}` : ""}</span></li>`).join("")}</ul>
 
-        <h3>${tr(L, "Other sources", "その他の出典")}</h3>
+        <h3>${tr(L, "Other Sources", "その他の出典")}</h3>
         <ul class="fh-about-list">
-            <li><b>${tr(L, "Landslide & avalanche risk areas", "山地災害危険地区（地すべり・雪崩）")}</b>: ${tr(L,
+            <li><b>${tr(L, "Landslide & Avalanche Risk Areas", "山地災害危険地区（地すべり・雪崩）")}</b>: ${tr(L,
                 "Hokkaido Forestry Bureau, Soil Conservation Division, Mountain Disaster Hazard Area GIS data (end of 2020), CC BY 4.0. Clipped to the study area by ForeignHokkaido. ",
                 "北海道水産林務部林務局治山課「山地災害危険地区 GISデータ」（2020年末時点）、CC BY 4.0。調査範囲に合わせてForeignHokkaidoが切り出し。")}${a("https://ckan.hoda.jp/dataset/sanchisaigaikikenchiku_hokkaido", tr(L, "Dataset ↗", "データセット ↗"))}</li>
-            <li><b>${tr(L, "Medical facilities", "医療機関")}</b>: ${tr(L,
+            <li><b>${tr(L, "Medical Facilities", "医療機関")}</b>: ${tr(L,
                 "Based on \"Hokkaido Medical Institutions List with Coordinates\" (道内医療機関一覧（位置情報付き）, data as of Feb 9, 2026), published by the Hokkaido Government DX Promotion Division on the Hokkaido Open Data Portal under CC BY, which adds coordinates to the Hokkaido Bureau of Health and Welfare (MHLW) medical institution list. Filtered to Oshima and Hiyama and matched with the Hokkaido list of facilities with foreign-language support by ForeignHokkaido. It may include closed or moved facilities. Check opening hours and language support by phone. ",
-                "北海道「道内医療機関一覧（位置情報付き）」（2026年2月9日現在、北海道経済部DX推進課、北海道オープンデータポータル、CC BY）をもとに作成。元データは厚生労働省北海道厚生局の医療機関一覧に位置情報を付与したものです。ForeignHokkaidoが渡島・檜山地域に絞り込み、北海道の外国語対応可能医療機関一覧と照合しました。閉院・移転した施設が含まれる場合があります。診療時間や対応言語は電話でご確認ください。")}${a("https://www.harp.lg.jp/opendata/dataset/1243.html", tr(L, "Dataset page ↗", "データセット ↗"))} ${a("https://www.pref.hokkaido.lg.jp/fs/1/0/7/7/4/3/0/4/_/iryoukikanenglish.pdf", tr(L, "Foreign-language list (PDF) ↗", "外国語対応リスト（PDF） ↗"))}</li>
-            <li><b>${tr(L, "Garbage rules", "ごみ分別")}</b>: ${tr(L,
+                "北海道「道内医療機関一覧（位置情報付き）」（2026年2月9日現在、北海道経済部DX推進課、北海道オープンデータポータル、CC BY）をもとに作成。元データは厚生労働省北海道厚生局の医療機関一覧に位置情報を付与したものです。ForeignHokkaidoが渡島・檜山地域に絞り込み、北海道の外国語対応可能医療機関一覧と照合しました。閉院・移転した施設が含まれる場合があります。診療時間や対応言語は電話でご確認ください。")}${a("https://www.harp.lg.jp/opendata/dataset/1243.html", tr(L, "Dataset Page ↗", "データセット ↗"))} ${a("https://www.pref.hokkaido.lg.jp/fs/1/0/7/7/4/3/0/4/_/iryoukikanenglish.pdf", tr(L, "Foreign-language list (PDF) ↗", "外国語対応リスト（PDF） ↗"))}</li>
+            <li><b>${tr(L, "Garbage Rules", "ごみ分別")}</b>: ${tr(L,
                 "Each town's official website, checked November 2026. Rules change, so confirm with your town office or supervisor.",
                 "各自治体の公式サイト（2026年11月確認）。ルールは変更されることがあるため、役場や担当者にご確認ください。")}</li>
-            <li><b>${tr(L, "Ski areas", "スキー場")}</b>: ${tr(L,
+            <li><b>${tr(L, "Ski Areas", "スキー場")}</b>: ${tr(L,
                 "Compiled by ForeignHokkaido from town and resort websites. Each popup shows how well an entry was checked; some positions are approximate.",
                 "自治体・施設の公開情報をもとにForeignHokkaidoが作成。各ポップアップに確認状況を表示しており、位置が目安のものもあります。")}</li>
-            <li><b>${tr(L, "Community events & local interests", "コミュニティイベント・地域のおすすめ")}</b>: ${tr(L,
+            <li><b>${tr(L, "Community Events & Local Interests", "コミュニティイベント・地域のおすすめ")}</b>: ${tr(L,
                 "Submitted by users through Esri Survey123. They are not verified.",
                 "ユーザーが Esri Survey123 で投稿した情報です。内容は確認されていません。")}</li>
-            <li><b>${tr(L, "App icon", "アプリのアイコン")}</b>: ${tr(L, "Adapted from \"Hokkaido\" by Snow, from Noun Project, CC BY 3.0 (outline filled and recolored). ", "Snow 作「Hokkaido」（Noun Project、CC BY 3.0）を改変（輪郭を塗りつぶし、色を変更）。")}${a("https://thenounproject.com/icon/2676113/", "Noun Project ↗")}</li>
+            <li><b>${tr(L, "App Icon", "アプリのアイコン")}</b>: ${tr(L, "Adapted from \"Hokkaido\" by Snow, from Noun Project, CC BY 3.0 (outline filled and recolored). ", "Snow 作「Hokkaido」（Noun Project、CC BY 3.0）を改変（輪郭を塗りつぶし、色を変更）。")}${a("https://thenounproject.com/icon/2676113/", "Noun Project ↗")}</li>
             <li><b>${tr(L, "Basemaps", "ベースマップ")}</b>: Esri, ${tr(L, "with the contributors listed at the bottom of the map.", "ほか、地図下部に表示のデータ提供者。")}</li>
         </ul>
 
-        <h3>${tr(L, "Please note", "ご注意")}</h3>
+        <h3>${tr(L, "Please Note", "ご注意")}</h3>
         <p class="fh-about-note">${tr(L,
             "This map is a guide, not an official source. Locations and details can be out of date: please confirm with the facility or your town office before you rely on them, especially for emergencies. Straight-line distances are not travel times.",
             "このマップは参考情報であり、公式情報ではありません。位置や内容が古い場合があります。特に緊急時は、利用前に施設や役場でご確認ください。距離は直線距離で、移動時間ではありません。")}</p>
-        <p>${a(FORM_LINKS.report, tr(L, "Report an error or add a place ↗", "誤りの報告・場所の追加 ↗"))}</p>`;
+        <p>${a(FORM_LINKS.report, tr(L, "Report an Error or Add a Place ↗", "誤りの報告・場所の追加 ↗"))}</p>`;
     closeAbout();
     aboutEl = el("div", { className: "fh-about-overlay" });
     const card = el("div", { className: "fh-about", role: "dialog" });
@@ -2142,11 +2144,13 @@ export async function initMap(containerId, apiKey) {
         map,
         center: homeView().center,
         zoom: homeView().zoom,
-        // Keep people from drifting far from the study area. The box is generous (all of southern Hokkaido plus a wide margin)
-        // so the starting view always fits; to loosen it, widen xmin/xmax/ymin/ymax. Rotation is off so a two-finger twist can't turn the map.
+        // Keep people near the study area. In the ArcGIS SDK this box limits where the view's CENTER can go (the screen edges
+        // can still show map beyond it), so it is drawn around the study area itself (Oshima + Hiyama, Okushiri to Hakodate),
+        // not around a margin. minZoom is one level out from the opening view (but never below 7).
+        // To loosen: widen xmin/xmax/ymin/ymax or lower the minZoom offset (keep it a whole number). Rotation is off so a two-finger twist can't turn the map.
         constraints: {
-            geometry: { type: "extent", xmin: 135.5, ymin: 39.0, xmax: 145.5, ymax: 45.0, spatialReference: { wkid: 4326 } },
-            minZoom: 6,
+            geometry: { type: "extent", xmin: 139.4, ymin: 41.4, xmax: 141.1, ymax: 42.7, spatialReference: { wkid: 4326 } },
+            minZoom: Math.max(homeView().zoom - 1, 7), // whole levels only: the basemap has no fractional zoom levels, and a fractional minZoom crashes MapView
             rotationEnabled: false
         },
         ui: { components: ["attribution"] }

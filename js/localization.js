@@ -68,8 +68,8 @@ export const translations = {
         mapLoadError: "The map could not be loaded. Check your connection and API key, then reload the page."
     },
     JA: {
-        appTitle: "北海道の異国情緒",
-        appSubtitle: "外国語指導助手（ALT）向け地域生活防災マップ",
+        appTitle: "ForeignHokkaido",
+        appSubtitle: "渡島・檜山 ALT向けネットワークマップ",
         langBtn: "🇬🇧 English",
         seasonBtnWinter: "❄️ 冬季モード",
         seasonBtnSummer: "☀️ 夏季モード",
@@ -137,30 +137,30 @@ export const translations = {
 
 export const tourSteps = {
     EN: [
-        { title: "Welcome to ForeignHokkaido!", text: "This map brings together official logistical information and crowdsourced community networks for ALTs in Oshima and Hiyama. Click through the tour for a brief overview of key features.", target: null },
-        { title: "Switch Language", text: "Tap here to switch the app between English and Japanese.", target: "#btn-lang-toggle" },
-        { title: "Map Controls", text: "Your toolbox. Turn layers on and off, filter by town, check garbage rules, and find interesting places near your location.", target: "#controlPanelCustomBtn" },
-        { title: "Municipality Filter", text: "Pick a town to zoom in and show only what's there. Choose “Show All Municipalities” (or tap Reset Extent) to go back.", target: "#tour-muni", panel: true },
-        { title: "Garbage Lookup", text: "Choose your town to see how to sort and put out your garbage.", target: "#tour-trash", panel: true },
-        { title: "Find the Nearest...", text: "Pick what you need (hospital, pharmacy, shelter, bus stop…), then tap “Use My Location” or “Pick on Map”. You'll get the three closest results within a straight-line distance.", target: "#tour-nearest", panel: true },
-        { title: "Layers", text: "Tick a layer to see it on the map. Under Medical, the 🌟 box shows only places with foreign-language support, and under Community Events, ⏳ hides events that have already happened. Busy layers like bus stops appear as you zoom in.", target: "#tour-layers", panel: true },
-        { title: "Community", text: "Know about an upcoming community event or a favorite local spot? Add it here and it will show up on the map in a few minutes. You can also report a problem with the app. Each button opens a form in a new tab.", target: "#tour-links", panel: true },
-        { title: "Legend", text: "Not sure what a symbol means? Open the Legend. Please note that only the layers you have turned on will be listed.", target: "#fh-legend, .esri-ui-top-left .esri-expand" },
-        { title: "Winter Mode", text: "Switch on Winter Mode to see snow zones and snowfall statistics, avalanche zones, and ski areas.", target: "#btn-season-toggle" },
-        { title: "Reset Extent", text: "Lost? Tap here to zoom back out to the whole region and clear any filters.", target: "#btn-reset-view" }
+        { title: "Welcome to ForeignHokkaido!", text: "This bilingual map covers services, safety information, and community resources for ALTs in Oshima and Hiyama. Proceed through the tour for an overview of main features.", target: null },
+        { title: "Switch Language", text: "Switch the entire app between English and Japanese on demand.", target: "#btn-lang-toggle" },
+        { title: "Map Controls", text: "Open the control panel to filter by municipality, look up garbage rules, find nearby facilities, and turn layers on or off.", target: "#controlPanelCustomBtn" },
+        { title: "Municipality Filter", text: "Select a municipality to show only its features. Choose “Show All Municipalities” or select Reset Extent to reset.", target: "#tour-muni", panel: true },
+        { title: "Garbage Lookup", text: "Select a municipality to view its garbage sorting rules, put-out times, and a link to the official town page.", target: "#tour-trash", panel: true },
+        { title: "Find the Nearest", text: "Choose a service type, then select Use My Location or Pick on Map. The three closest results in a straight-line distance will be provided.", target: "#tour-nearest", panel: true },
+        { title: "Toggle Layers", text: "Toggle layers on or off to fit your needs. Under Medical Facilities, 🌟 limits results to places with foreign-language support. Under Community Events, ⏳ hides past events. Dense layers appear as you zoom in.", target: "#tour-layers", panel: true },
+        { title: "Community Contributions", text: "Submit a community event or local interest, or report a problem with the app. Each button opens a form in a new tab. New entries will appear on the map within a few minutes.", target: "#tour-links", panel: true },
+        { title: "Legend", text: "Open the legend to identify map symbols. Only layers that have been toggled on are listed.", target: "#fh-legend, .esri-ui-top-left .esri-expand" },
+        { title: "Winter Mode", text: "Winter Mode adds official snow zone classifications and statistics, avalanche hazard zones, and winter recreation areas to the map.", target: "#btn-season-toggle" },
+        { title: "Reset Extent", text: "Return to the starting view and clear all filters. Now go have fun exploring!", target: "#btn-reset-view" }
     ],
     JA: [
-        { title: "ForeignHokkaido へようこそ", text: "渡島・檜山で暮らすALTのための、生活情報・防災情報・地域のおすすめをまとめた地図です。さっそく使い方を見てみましょう。", target: null },
-        { title: "言語の切り替え", text: "ここをタップすると、日本語と英語を切り替えられます。ポップアップも一緒に切り替わります。", target: "#btn-lang-toggle" },
-        { title: "マップ操作", text: "操作の入り口です。レイヤーの表示切替、市町村での絞り込み、ごみ収集ルールの確認、近くの施設検索ができます。", target: "#controlPanelCustomBtn" },
-        { title: "市町村フィルター", text: "市町村を選ぶと、その地域にズームして、中にある施設だけを表示します。「全自治体を表示」を選ぶか、「全域表示」を押すと元に戻ります。", target: "#tour-muni", panel: true },
-        { title: "ごみ収集の検索", text: "お住まいの市町村を選ぶと、ごみの分別と出し方が見られます。確認が十分でない地域には注意書きが出ます。", target: "#tour-trash", panel: true },
-        { title: "近くの施設を探す", text: "探したい施設（病院、薬局、避難所、バス停など）を選んで、「現在地から」か「地図で選ぶ」を押してください。近い順に3件が、直線距離付きで表示されます。", target: "#tour-nearest", panel: true },
-        { title: "レイヤー", text: "チェックを入れると地図に表示されます。「医療施設」の🌟は外国語対応の施設だけを、「地域のイベント」の⏳は開催済みのイベントを非表示にします。バス停など数の多いレイヤーは、拡大すると表示されます。", target: "#tour-layers", panel: true },
-        { title: "コミュニティ", text: "イベントやおすすめの場所を知っていたら、ここから投稿してみてください。数分後に地図に表示されます。アプリの不具合の報告もできます。フォームは新しいタブで開きます。", target: "#tour-links", panel: true },
-        { title: "凡例", text: "記号の意味が分からないときは「凡例」を開いてください。表示中のレイヤーだけが並びます。", target: "#fh-legend, .esri-ui-top-left .esri-expand" },
-        { title: "冬季モード", text: "冬季モードをオンにすると、豪雪地帯区分と積雪統計、雪崩危険区域、スキー場が表示されます。冬の備えにどうぞ。", target: "#btn-season-toggle" },
-        { title: "全域表示", text: "迷ったらここ。南西北海道の全体表示に戻り、絞り込みも解除します。", target: "#btn-reset-view" }
+        { title: "ForeignHokkaido へようこそ", text: "渡島・檜山地域のALTのための、生活情報・防災情報・地域コミュニティ情報をまとめた日英対応マップです。主な機能をご紹介します。", target: null },
+        { title: "言語の切り替え", text: "ポップアップや凡例を含むアプリ全体の表示を、日本語と英語で切り替えます。", target: "#btn-lang-toggle" },
+        { title: "マップ操作", text: "コントロールパネルを開くと、市町村での絞り込み、ごみ収集ルールの検索、近くの施設の検索、レイヤーの表示切替ができます。", target: "#controlPanelCustomBtn" },
+        { title: "市町村フィルター", text: "市町村を選ぶと、その地域にズームし、該当する情報のみを表示します。「全自治体を表示」を選ぶか「全域表示」を押すと解除されます。", target: "#tour-muni", panel: true },
+        { title: "ごみ収集の検索", text: "市町村を選ぶと、分別ルール、出す時間、町の公式ページへのリンクが表示されます。", target: "#tour-trash", panel: true },
+        { title: "近くの施設を探す", text: "施設の種類を選び、「現在地から」または「地図で選ぶ」を押してください。直線距離が近い順に3件が表示されます。", target: "#tour-nearest", panel: true },
+        { title: "レイヤー", text: "レイヤーのオン・オフで地図の表示を切り替えます。「医療施設」の🌟は外国語対応の施設のみ、「地域のイベント」の⏳は開催済みのイベントを非表示にします。数の多いレイヤーは、拡大すると表示されます。", target: "#tour-layers", panel: true },
+        { title: "コミュニティ投稿", text: "地域のイベントやおすすめスポットの投稿、アプリの不具合の報告ができます。各ボタンは新しいタブでフォームを開き、投稿は数分以内に地図に反映されます。", target: "#tour-links", panel: true },
+        { title: "凡例", text: "凡例を開くと、地図の記号の意味を確認できます。表示中のレイヤーのみが一覧に表示されます。", target: "#fh-legend, .esri-ui-top-left .esri-expand" },
+        { title: "冬季モード", text: "冬季モードでは、豪雪地帯区分と積雪統計、雪崩危険区域、冬季レクリエーション施設が表示されます。", target: "#btn-season-toggle" },
+        { title: "全域表示", text: "南西北海道の全体表示に戻り、すべての絞り込みを解除します。それでは、地域の探索をお楽しみください。", target: "#btn-reset-view" }
     ]
 };
 

@@ -1,10 +1,10 @@
 # ForeignHokkaido
 
-**A free, bilingual (English/日本語), mobile-first web map for Assistant Language Teachers (ALTs) in the Oshima and Hiyama subprefectures of southwestern Hokkaido, Japan.**
+**A free, bilingual (English/日本語), mobile-first web map for Assistant Language Teachers (ALTs) in the Oshima and Hiyama subprefectures of Hokkaido, Japan.**
 
 **Live app:** https://harpisthope.github.io/GEOG_778/
 
-ForeignHokkaido puts the practical information a new ALT needs (hospitals, emergency shelters, transit, garbage rules, winter hazards, and community events) on one map in English and Japanese, covering all 18 municipalities from Hakodate to Okushiri. It was built by Hope McBride as the capstone project for GEOG 778 (M.S. in Cartography and GIS, University of Wisconsin–Madison, Fall 2026).
+ForeignHokkaido puts the practical information a new ALT needs (hospitals, emergency shelters, transit, garbage rules, winter hazards, community events, etc.) on one map in both English and Japanese, covering all 18 municipalities from Hakodate to Okushiri. It was built by Hope McBride as the practicum project for Geography 778 (M.S. in Cartography and GIS, University of Wisconsin–Madison, Fall 2026).
 
 ---
 
@@ -32,7 +32,11 @@ ForeignHokkaido puts the practical information a new ALT needs (hospitals, emerg
 
 ## Architecture
 
-Source datasets are cleaned in ArcGIS Pro and Python. Most are published as ArcGIS Online hosted feature layers, and a few smaller ones are kept as GeoJSON in this repository. The app has no server of its own. The browser loads the SDK, draws the layers, and queries them directly (SQL attribute filters and spatial queries for filters, municipality summaries, and Find the Nearest). Survey123 submissions go straight to hosted layers, which the map refreshes every minute.
+![ForeignHokkaido system architecture. Source data is cleaned in ArcGIS Pro and Python, published as ArcGIS Online (AGOL) hosted feature layers and static GeoJSON files, and read directly by the static web app on GitHub Pages. Survey123 submissions are saved as AGOL hosted feature layers.](images/architecture.png)
+
+*Figure 1. ForeignHokkaido system architecture.*
+
+Source datasets are cleaned in ArcGIS Pro and Python. Most are published as ArcGIS Online (AGOL) hosted feature layers, and a few smaller ones are kept as GeoJSON files in this repository. The app has no server of its own. The browser loads the SDK, draws the layers, and queries them directly (SQL attribute filters and spatial queries for filters, municipality summaries, and the Find the Nearest feature). Survey123 submissions are saved as AGOL hosted feature layers, which the map refreshes every minute.
 
 ## Data
 
@@ -51,16 +55,15 @@ Several MLIT datasets date from 2010 to 2015, so a facility may have closed or m
 
 ## Known limitations
 
-- Straight-line distance is used for Find the Nearest, not travel time.
-- Garbage collection days are left to each district's calendar and are not in the popups.
+- Straight-line distance is used for the Find the Nearest feature, not travel time.
+- Garbage collection days are left to each district's calendar and are not included in the popups.
 - Crowdsourced entries are not moderated or verified.
 - All Japanese translations have been AI-assisted and manually reviewed, but not yet confirmed by a native speaker.
-- Testing so far covers a small group of ALTs.
 
 ## Ideas for future work
 
-- Datasets that lacked usable current data (ATMs, snowplow routes, winter parking rules)
-- District-level garbage boundaries and automated update reminders
+- Datasets that currently lack usable data (ATMs, snowplow routes, winter parking rules, etc.)
+- District-level garbage regulation data
 - Travel-time routing with bus and train timetables
 - Date, type, and keyword filtering for community entries
 - A named maintainer, such as a regional ALT association
