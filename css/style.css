@@ -383,3 +383,10 @@ html, body {
 /* Narrow phones: keep Japanese button labels from breaking mid-word */
 html:lang(ja) .header-btn { word-break: keep-all; }
 @media (max-width: 360px) { .header-btn { font-size: 0.62rem; padding: 4px 2px; } }
+
+.fh-result { cursor: pointer; border-radius: 8px; transition: background 150ms ease, box-shadow 150ms ease; }
+.fh-result:hover { background: rgba(56, 189, 248, 0.08); }
+.fh-result.is-selected {
+    background: rgba(56, 189, 248, 0.16);
+    box-shadow: 0 0 0 2px #38bdf8, 0 0 12px 2px rgba(56, 189, 248, 0.55);
+}

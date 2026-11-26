@@ -1594,7 +1594,7 @@ const NEAREST = [
     { key: "gas", icon: "⛽", en: "Gas station", ja: "ガソリンスタンド", layer: "gas", name: (a, L) => tr(L, "Gas station", "ガソリンスタンド"), detail: (a) => a.P07_002 || "" }
 ];
 
-let nearest = { cat: "hospital", origin: null, source: null, results: [], status: "" }; // source: "locate" | "pick"
+let nearest = { cat: "hospital", origin: null, source: null, results: [], status: "", selected: null }; // source: "locate" | "pick"
 let locating = false; // waiting for the browser's location answer
 
 // Which start-point button is lit: the one being waited on, otherwise the one the current results came from.
@@ -1661,7 +1661,7 @@ function nearestResultsHtml(L) {
         const o = nearest.origin;
         const dir = `https://www.google.com/maps/dir/?api=1${o ? `&origin=${o.lat},${o.lon}` : ""}&destination=${r.lat},${r.lon}&hl=${L === "JA" ? "ja" : "en"}`;
         html += `
-        <div class="fh-result">
+        <div class="fh-result${nearest.selected === i ? " is-selected" : ""}" data-result="${i}">
             <span class="fh-result-num">${i + 1}</span>
             <div class="fh-result-body">
                 <b>${escHtml(name)}</b>
@@ -1700,6 +1700,8 @@ function drawNearest() {
     }
     nearest.results.forEach((r, i) => {
         const geometry = { type: "point", longitude: r.lon, latitude: r.lat };
+        // The selected result gets a light-blue glow ring under its numbered marker
+        if (nearest.selected === i) nearestGfx.add(new Graphic({ geometry, symbol: { type: "simple-marker", style: "circle", color: [56, 189, 248, 0.3], size: 31, outline: { color: [56, 189, 248, 0.85], width: 2 } } }));
         nearestGfx.add(new Graphic({ geometry, symbol: { type: "simple-marker", style: "circle", color: [213, 94, 0, 1], size: 22, outline: { color: [255, 255, 255, 1], width: 2 } } }));
         nearestGfx.add(new Graphic({ geometry, symbol: { type: "text", text: String(i + 1), color: [255, 255, 255, 1], font: { size: 11, weight: "bold" }, yoffset: -2.5 } }));
     });
@@ -1709,6 +1711,7 @@ async function runNearest() {
     const L = currentLang;
     const cat = NEAREST.find((c) => c.key === nearest.cat) || NEAREST[0];
     nearest.results = [];
+    nearest.selected = null;
     nearest.status = tr(L, "Searching…", "検索中…");
     renderNearest();
     try {
@@ -1735,7 +1738,14 @@ function fitNearest() {
     const lons = pts.map((p) => p.lon), lats = pts.map((p) => p.lat);
     const pad = 0.0015; // ~150 m, so a single point still gets a sensible extent
     const ext = new esri.Graphic({ geometry: { type: "extent", xmin: Math.min(...lons) - pad, ymin: Math.min(...lats) - pad, xmax: Math.max(...lons) + pad, ymax: Math.max(...lats) + pad, spatialReference: { wkid: 4326 } } }).geometry;
-    view.goTo(ext.expand(1.6), { duration: 1000 }).catch(() => {});
+    let target = ext.expand(1.6);
+    // Desktop: the open control panel covers the left ~440 px of the map, so add that much room on the left or the westernmost result hides behind it
+    if (!isMobile() && panelOpen && view.width > 600) {
+        const f = 440 / view.width;
+        target = target.clone();
+        target.xmin -= (target.xmax - target.xmin) * f / (1 - f);
+    }
+    view.goTo(target, { duration: 1000 }).catch(() => {});
 }
 
 // Floating "3 nearest" chip: shown on phones while results exist, the panel is closed and no popup is open.
@@ -1797,21 +1807,76 @@ function startPick() {
     if (window.matchMedia(MOBILE_QUERY).matches) setPanelOpen(false);
 }
 
+// Which "nearest" result (if any) is this popup feature? Matched by layer and position.
+function nearestIndexOf(f) {
+    const g = f?.geometry;
+    const pt = g?.latitude !== undefined ? g : g?.extent?.center;
+    if (!pt || pt.latitude === undefined) return -1;
+    return nearest.results.findIndex((r) => r.feature.layer === f.layer && Math.abs(r.lat - pt.latitude) < 1e-5 && Math.abs(r.lon - pt.longitude) < 1e-5);
+}
+
+function selectNearest(i) {
+    nearest.selected = i;
+    drawNearest(); // glow ring on the map
+    panelEl?.querySelectorAll(".fh-result").forEach((row) => {
+        const on = Number(row.dataset.result) === i;
+        row.classList.toggle("is-selected", on);
+        if (on) row.scrollIntoView?.({ block: "nearest" });
+    });
+}
+
+// Zoom and pan to a result. Phones use the close-up level 15 (the popup card covers the lower half of the screen); desktop keeps the
+// current zoom when already close, and otherwise zooms in to level 14 (neighborhood scale).
+let lastCardTop = null; // popup card top (px) measured last time, so later zooms can aim above it in one smooth move
+const zoomToResult = (r) => {
+    if (!isMobile()) return view.goTo({ center: [r.lon, r.lat], zoom: Math.max(Math.round(view.zoom), 14) }, { duration: 900 });
+    // Phones: aim the result at the middle of the strip above the card as part of the same move
+    const R = 6378137, zoom = 15, res = 156543.03392804097 / 2 ** zoom;
+    const x = (r.lon * Math.PI / 180) * R, y = Math.log(Math.tan(Math.PI / 4 + (r.lat * Math.PI / 180) / 2)) * R;
+    const top = lastCardTop ?? view.height * 0.62;
+    const c = view.toScreen(view.center);
+    const center = view.center.clone();
+    center.x = x;
+    center.y = c ? y + (((60 + top - 28) / 2) - c.y) * res : y;
+    return view.goTo({ center, zoom }, { duration: 900 });
+};
+
 function showNearestResult(i) {
     const r = nearest.results[i];
     if (!r) return;
+    selectNearest(i);
     if (window.matchMedia(MOBILE_QUERY).matches) setPanelOpen(false);
-    view.goTo({ center: [r.lon, r.lat], zoom: 15 }, { duration: 900 })
+    zoomToResult(r)
         .catch(() => {})
         .then(() => view.openPopup({ features: [r.feature], location: { type: "point", longitude: r.lon, latitude: r.lat } }))
+        .then(() => liftAboveCard(r))
         .catch(() => {});
+}
+
+// Phones: once the popup card is up, move the centered result into the middle of the strip above it.
+function liftAboveCard(r) {
+    if (!isMobile() || !r) return;
+    setTimeout(() => {
+        const card = document.querySelector(".esri-popup__main-container");
+        if (!card || !view) return;
+        const top = card.getBoundingClientRect().top - view.container.getBoundingClientRect().top;
+        if (top < 140) return;
+        lastCardTop = top;
+        const targetY = (60 + (top - 28)) / 2;
+        // Where the result sits on screen now (it is no longer at the view center)
+        const p = view.toScreen(new esri.Graphic({ geometry: { type: "point", longitude: r.lon, latitude: r.lat } }).geometry);
+        if (!p || Math.abs(p.y - targetY) < 40) return;
+        const next = view.center.clone();
+        next.y = view.center.y + (targetY - p.y) * view.resolution;
+        view.goTo({ center: next }, { duration: 400 }).catch(() => {});
+    }, 250);
 }
 
 function clearNearest() {
     pickingOrigin = false;
     locating = false;
     hideToast();
-    nearest = { ...nearest, origin: null, source: null, results: [], status: "" };
+    nearest = { ...nearest, origin: null, source: null, results: [], status: "", selected: null };
     nearestGfx?.removeAll();
     renderPanel();
     syncChip();
@@ -1930,7 +1995,11 @@ function buildControls() {
     toggleBtn.addEventListener("click", () => setPanelOpen(!panelOpen));
     panelEl.addEventListener("click", (e) => {
         const btn = e.target.closest?.("[data-nearest], [data-nearest-go], [data-about], [data-panel-close]");
-        if (!btn) return;
+        if (!btn) {
+            const row = e.target.closest?.(".fh-result");
+            if (row && !e.target.closest("a")) showNearestResult(Number(row.dataset.result)); // tapping anywhere on a result selects it
+            return;
+        }
         if (btn.dataset.about !== undefined) { openAbout(); return; }
         if (btn.dataset.panelClose !== undefined) { setPanelOpen(false); return; }
         if (btn.dataset.nearest === "locate") useMyLocation();
@@ -2034,9 +2103,17 @@ function panAboveMobilePopup(feature) {
     }
     if (!where) return;
     const zooming = scale !== view.scale;
+    // Nearest-place features are queried in lat/lon, but the view works in Web Mercator: convert before doing any map-unit math
+    // (mixing degrees with metres sent the map off to the edge of the allowed area).
+    const toView = (p) => {
+        if (p.spatialReference?.isWebMercator || p.latitude === undefined) return { x: p.x, y: p.y };
+        const R = 6378137;
+        return { x: (p.longitude * Math.PI / 180) * R, y: Math.log(Math.tan(Math.PI / 4 + (p.latitude * Math.PI / 180) / 2)) * R };
+    };
+    const w = toView(where);
     const c = view.toScreen(view.center);
-    const pt = view.toScreen(where);
-    if (!pt || !c) return;
+    if (!c || !Number.isFinite(w.x) || !Number.isFinite(w.y)) return;
+    const pt = { x: c.x + (w.x - view.center.x) / r, y: c.y - (w.y - view.center.y) / r }; // where it sits on screen now
     if (!zooming) {
         const okX = pt.x > 70 && pt.x < view.width - 30;           // not under the left-hand buttons
         if (okX && pt.y > minY && pt.y < maxY) return;              // already visible
@@ -2044,14 +2121,14 @@ function panAboveMobilePopup(feature) {
     const target = { x: view.width / 2, y: (minY + maxY) / 2 };
     if (!zooming && pt.x > 70 && pt.x < view.width - 30) target.x = pt.x;   // pan only: keep the sideways position
     const r2 = r * (scale / view.scale);              // resolution after the move
-    const next = where.clone();
-    next.x = where.x + (c.x - target.x) * r2;
-    next.y = where.y + (target.y - c.y) * r2;
+    const next = view.center.clone(); // a real Point in the view's coordinate system (goTo ignores a plain {x, y} object)
+    next.x = w.x + (c.x - target.x) * r2;
+    next.y = w.y + (target.y - c.y) * r2;
     view.goTo({ center: next, scale }, { duration: 600, easing: "ease-in-out" }).catch(() => {});
 }
 function watchAutoPan() {
     view.watch("popup.selectedFeature", (f) => {
-        if (!f || !isMobile() || AUTO_PAN_SKIP.includes(f.layer?.id)) return;
+        if (!f || !isMobile() || AUTO_PAN_SKIP.includes(f.layer?.id) || nearestIndexOf(f) >= 0) return; // nearest results zoom on their own
         const token = ++autoPanToken;
         setTimeout(() => { // wait for the card to finish rendering so its height is real
             if (token === autoPanToken && view.popup?.visible && view.popup.selectedFeature === f) panAboveMobilePopup(f);
@@ -2173,6 +2250,22 @@ export async function initMap(containerId, apiKey) {
     };
     view.watch("scale", updateScaleHints);
     view.watch("popup.visible", syncChip); // path watch: works even while the popup is lazily created
+    // Closing the garbage popup resets the lookup, so choosing the same town again works (a dropdown only fires "change" when its value changes).
+    view.watch("popup.selectedFeature", (f) => {
+        const i = f ? nearestIndexOf(f) : -1;
+        if (i < 0 || i === nearest.selected) return; // not a result, or already selected from the panel (which zooms on its own)
+        selectNearest(i);
+        zoomToResult(nearest.results[i]).then(() => liftAboveCard(nearest.results[i])).catch(() => {}); // tapped on the map: zoom and pan closer too
+    });
+    let trashPopupShown = false;
+    view.watch("popup.selectedFeature", (f) => { if (f) trashPopupShown = f.layer === layers.trash; });
+    view.watch("popup.visible", (visible) => {
+        if (visible || !trashPopupShown || trashTown === "ALL") return;
+        trashPopupShown = false;
+        showTrash("ALL");
+        const sel = document.getElementById("trash-filter-select");
+        if (sel) sel.value = "ALL";
+    });
     // Outline the town whose popup is showing; fall back to the filtered town (or nothing) otherwise.
     view.watch("popup.selectedFeature", async (f) => {
         const fallback = spatialFilter?.geometry ?? null;
@@ -2188,13 +2281,14 @@ export async function initMap(containerId, apiKey) {
     watchAutoPan();
 
     // "Pick on Map" for the nearest-X tool: takes the next click and keeps it from opening a popup.
+    const nearestHitIndex = (event) => nearest.results.findIndex((r) => {
+        const p = view.toScreen(new esri.Graphic({ geometry: { type: "point", longitude: r.lon, latitude: r.lat } }).geometry); // needs a real Point
+        return p && Math.hypot(p.x - event.x, p.y - event.y) <= 16;
+    });
     view.on("click", (event) => {
         // Tapping a numbered result marker opens that place's popup (checked on screen so the default popup can be stopped in time).
         if (!pickingOrigin && nearest.results.length) {
-            const hit = nearest.results.findIndex((r) => {
-                const p = view.toScreen(new esri.Graphic({ geometry: { type: "point", longitude: r.lon, latitude: r.lat } }).geometry); // needs a real Point
-                return p && Math.hypot(p.x - event.x, p.y - event.y) <= 16;
-            });
+            const hit = nearestHitIndex(event);
             if (hit >= 0) {
                 event.stopPropagation();
                 const r = nearest.results[hit];
@@ -2213,6 +2307,7 @@ export async function initMap(containerId, apiKey) {
     // Clicking a municipality polygon (when it is the topmost feature) zooms to it on desktop; on phones the popup-aware auto-zoom does it.
     view.on("click", async (event) => {
         if (window.matchMedia(MOBILE_QUERY).matches) setPanelOpen(false);
+        if (nearest.results.length && nearestHitIndex(event) >= 0) return; // a result marker was tapped: its own zoom wins (the town zoom bounced the view back out)
         const { results } = await view.hitTest(event);
         const top = results.find((r) => r.graphic?.layer && !["townHighlight", "nearest"].includes(r.graphic.layer.id));
         if (!isMobile() && currentSeason !== "winter" && top?.graphic.layer.id === "muniBoundaries" && top.graphic.geometry?.extent) {
