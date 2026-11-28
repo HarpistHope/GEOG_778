@@ -2342,6 +2342,8 @@ export async function initMap(containerId, apiKey) {
         const sel = document.getElementById("trash-filter-select");
         if (sel) sel.value = "ALL";
     });
+    // Closing the popup clears a tapped town's outline (a filtered town keeps its outline).
+    view.watch("popup.visible", (visible) => { if (!visible) drawTownHighlight(spatialFilter?.geometry ?? null); });
     // Outline the town whose popup is showing; fall back to the filtered town (or nothing) otherwise.
     view.watch("popup.selectedFeature", async (f) => {
         const fallback = spatialFilter?.geometry ?? null;
