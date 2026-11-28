@@ -1066,7 +1066,15 @@ const RENDERERS = {
     post: single(marker("circle", C.blue, 8)),
     shelters: single(marker("square", C.green, 9, [255, 255, 255, 1], 1)),
     police: single(marker("diamond", [0, 45, 110], 12, [255, 255, 255, 1], 1.5)),
-    railStations: single({ type: "simple-marker", style: "circle", color: [255, 255, 255, 1], size: "10px", outline: { color: rgba(C.dark), width: 1.5 } }),
+    // Stations are short LINES in the data, so a marker symbol only landed on their two end vertices. A thick round-capped stroke with a white casing
+    // draws each station as one solid pill (and as a dot when zoomed out). In CIM, the first layer is drawn on top.
+    railStations: single({
+        type: "cim",
+        data: { type: "CIMSymbolReference", symbol: { type: "CIMLineSymbol", symbolLayers: [
+            { type: "CIMSolidStroke", enable: true, capStyle: "Round", joinStyle: "Round", width: 3, color: [27, 54, 93, 255] },
+            { type: "CIMSolidStroke", enable: true, capStyle: "Round", joinStyle: "Round", width: 6, color: [255, 255, 255, 255] }
+        ] } }
+    }),
     bus: single(marker("circle", C.sky, 7, [0, 60, 100, 1], 1)),
     roadside: single(marker("diamond", C.orange, 13, [120, 75, 0, 1], 1.25)),
     gas: single(marker("square", C.yellow, 9, [80, 70, 0, 1], 1.25)),
@@ -2124,12 +2132,80 @@ function panAboveMobilePopup(feature) {
     const next = view.center.clone(); // a real Point in the view's coordinate system (goTo ignores a plain {x, y} object)
     next.x = w.x + (c.x - target.x) * r2;
     next.y = w.y + (target.y - c.y) * r2;
-    view.goTo({ center: next, scale }, { duration: 600, easing: "ease-in-out" }).catch(() => {});
+    autoGoTo({ center: next, scale }, { duration: 600, easing: "ease-in-out" });
 }
+/* Desktop: zoom in on a tapped feature and center it in the free area (between the control panel and the docked popup).
+   Points zoom in to level ~14; lines and areas zoom in to fit that free area. Never zooms out, and large features just pan to the click. */
+/* Remember where the view was before the first automatic zoom, so closing the popup can return there (only if the map was not moved since). */
+let preAutoView = null, lastAuto = null;
+function autoGoTo(target, options) {
+    if (!preAutoView) preAutoView = { center: view.center.clone(), scale: view.scale };
+    return view.goTo(target, options)
+        .then(() => { lastAuto = { x: view.center.x, y: view.center.y, scale: view.scale }; })
+        .catch(() => {});
+}
+
+const DESKTOP_SKIP = [...AUTO_PAN_SKIP, "muniBoundaries", "oshhiBoundaries", "trash"]; // towns and the garbage lookup zoom on their own
+const DESKTOP_ZOOM = { pointScale: 36000, minScale: 8000, margin: 0.8 };
+function zoomToFeatureDesktop(feature) {
+    if (!view || isMobile() || !feature?.geometry) return;
+    const g = feature.geometry;
+    const leftInset = panelOpen ? 460 : 70, rightInset = 540, topInset = 200;
+    const freeW = view.width - leftInset - rightInset, freeH = view.height - topInset - 30;
+    if (freeW < 250 || freeH < 200) return;
+    const r = view.resolution;
+    let scale = view.scale, where = null;
+    if (g.type === "point") {
+        where = g;
+        if (scale > DESKTOP_ZOOM.pointScale) scale = DESKTOP_ZOOM.pointScale;
+    } else {
+        const e = g.extent;
+        if (e && e.width > 0 && e.height > 0) {
+            const fitRes = Math.max(e.width / (freeW * DESKTOP_ZOOM.margin), e.height / (freeH * DESKTOP_ZOOM.margin));
+            const fitScale = Math.max(DESKTOP_ZOOM.minScale, view.scale * fitRes / r);
+            if (fitScale < view.scale * 0.92) { scale = fitScale; where = e.center; } // fits closer than now: zoom in to it
+        }
+        where = where ?? view.popup.location ?? e?.center; // too big to fit: just bring the tapped spot into view
+    }
+    if (!where) return;
+    const toView = (p) => {
+        if (p.spatialReference?.isWebMercator || p.latitude === undefined) return { x: p.x, y: p.y };
+        const R = 6378137;
+        return { x: (p.longitude * Math.PI / 180) * R, y: Math.log(Math.tan(Math.PI / 4 + (p.latitude * Math.PI / 180) / 2)) * R };
+    };
+    const w = toView(where);
+    const c = view.toScreen(view.center);
+    if (!c || !Number.isFinite(w.x) || !Number.isFinite(w.y)) return;
+    const zooming = scale !== view.scale;
+    const pt = { x: c.x + (w.x - view.center.x) / r, y: c.y - (w.y - view.center.y) / r };
+    if (!zooming && pt.x > leftInset && pt.x < leftInset + freeW && pt.y > topInset && pt.y < topInset + freeH) return; // already in the clear
+    const target = { x: leftInset + freeW / 2, y: topInset + freeH / 2 };
+    const r2 = r * (scale / view.scale);
+    const next = view.center.clone();
+    next.x = w.x + (c.x - target.x) * r2;
+    next.y = w.y + (target.y - c.y) * r2;
+    autoGoTo({ center: next, scale }, { duration: 800, easing: "ease-in-out" });
+}
+
 function watchAutoPan() {
+    view.watch("popup.visible", (visible) => {
+        if (visible || !preAutoView) return;
+        const back = preAutoView, a = lastAuto;
+        preAutoView = null; lastAuto = null;
+        if (!a) return;
+        const movedPx = Math.hypot(view.center.x - a.x, view.center.y - a.y) / view.resolution;
+        if (movedPx > 8 || Math.abs(view.scale / a.scale - 1) > 0.02) return; // the user panned or zoomed since: leave their view alone
+        view.goTo({ center: back.center, scale: back.scale }, { duration: 700, easing: "ease-in-out" }).catch(() => {});
+    });
     view.watch("popup.selectedFeature", (f) => {
-        if (!f || !isMobile() || AUTO_PAN_SKIP.includes(f.layer?.id) || nearestIndexOf(f) >= 0) return; // nearest results zoom on their own
+        if (!f || nearestIndexOf(f) >= 0) return; // nearest results zoom on their own
         const token = ++autoPanToken;
+        if (!isMobile()) {
+            if (DESKTOP_SKIP.includes(f.layer?.id)) return;
+            setTimeout(() => { if (token === autoPanToken && view.popup?.visible && view.popup.selectedFeature === f) zoomToFeatureDesktop(f); }, 200);
+            return;
+        }
+        if (AUTO_PAN_SKIP.includes(f.layer?.id)) return;
         setTimeout(() => { // wait for the card to finish rendering so its height is real
             if (token === autoPanToken && view.popup?.visible && view.popup.selectedFeature === f) panAboveMobilePopup(f);
         }, 350);
